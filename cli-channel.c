@@ -45,7 +45,7 @@ void recv_msg_channel_extended_data() {
 		return; /* we just ignore it */
 	}
 
-	datatype = buf_getint(ses.payload);
+	datatype = buf_getint(ses->payload);
 	
 	if (datatype != SSH_EXTENDED_DATA_STDERR) {
 		TRACE(("leave recv_msg_channel_extended_data: wrong datatype: %d",

@@ -30,9 +30,9 @@
 void listeners_initialise() {
 
 	/* just one slot to start with */
-	ses.listeners = (struct Listener**)m_malloc(sizeof(struct Listener*));
-	ses.listensize = 1;
-	ses.listeners[0] = NULL;
+	ses->listeners = (struct Listener**)m_malloc(sizeof(struct Listener*));
+	ses->listensize = 1;
+	ses->listeners[0] = NULL;
 
 }
 
@@ -42,8 +42,8 @@ void set_listener_fds(fd_set * readfds) {
 	struct Listener *listener;
 
 	/* check each in turn */
-	for (i = 0; i < ses.listensize; i++) {
-		listener = ses.listeners[i];
+	for (i = 0; i < ses->listensize; i++) {
+		listener = ses->listeners[i];
 		if (listener != NULL) {
 			for (j = 0; j < listener->nsocks; j++) {
 				FD_SET(listener->socks[j], readfds);
@@ -60,8 +60,8 @@ void handle_listeners(fd_set * readfds) {
 	int sock;
 
 	/* check each in turn */
-	for (i = 0; i < ses.listensize; i++) {
-		listener = ses.listeners[i];
+	for (i = 0; i < ses->listensize; i++) {
+		listener = ses->listeners[i];
 		if (listener != NULL) {
 			for (j = 0; j < listener->nsocks; j++) {
 				sock = listener->socks[j];
@@ -84,15 +84,15 @@ struct Listener* new_listener(int socks[], unsigned int nsocks,
 	unsigned int i, j;
 	struct Listener *newlisten = NULL;
 	/* try get a new structure to hold it */
-	for (i = 0; i < ses.listensize; i++) {
-		if (ses.listeners[i] == NULL) {
+	for (i = 0; i < ses->listensize; i++) {
+		if (ses->listeners[i] == NULL) {
 			break;
 		}
 	}
 
 	/* or create a new one */
-	if (i == ses.listensize) {
-		if (ses.listensize > MAX_LISTENERS) {
+	if (i == ses->listensize) {
+		if (ses->listensize > MAX_LISTENERS) {
 			TRACE(("leave newlistener: too many already"))
 			for (j = 0; j < nsocks; j++) {
 				close(socks[i]);
@@ -100,19 +100,19 @@ struct Listener* new_listener(int socks[], unsigned int nsocks,
 			return NULL;
 		}
 		
-		ses.listeners = (struct Listener**)m_realloc(ses.listeners,
-				(ses.listensize+LISTENER_EXTEND_SIZE)
+		ses->listeners = (struct Listener**)m_realloc(ses->listeners,
+				(ses->listensize+LISTENER_EXTEND_SIZE)
 				*sizeof(struct Listener*));
 
-		ses.listensize += LISTENER_EXTEND_SIZE;
+		ses->listensize += LISTENER_EXTEND_SIZE;
 
-		for (j = i; j < ses.listensize; j++) {
-			ses.listeners[j] = NULL;
+		for (j = i; j < ses->listensize; j++) {
+			ses->listeners[j] = NULL;
 		}
 	}
 
 	for (j = 0; j < nsocks; j++) {
-		ses.maxfd = MAX(ses.maxfd, socks[j]);
+		ses->maxfd = MAX(ses->maxfd, socks[j]);
 	}
 
 	TRACE(("new listener num %d ", i))
@@ -126,7 +126,7 @@ struct Listener* new_listener(int socks[], unsigned int nsocks,
 	newlisten->acceptor = acceptor;
 	newlisten->cleanup = cleanup;
 
-	ses.listeners[i] = newlisten;
+	ses->listeners[i] = newlisten;
 	return newlisten;
 }
 
@@ -138,7 +138,7 @@ struct Listener * get_listener(int type, void* typedata,
 	unsigned int i;
 	struct Listener* listener;
 
-	for (i = 0, listener = ses.listeners[i]; i < ses.listensize; i++) {
+	for (i = 0, listener = ses->listeners[i]; i < ses->listensize; i++) {
 		if (listener->type == type
 				&& match(typedata, listener->typedata)) {
 			return listener;
@@ -159,7 +159,7 @@ void remove_listener(struct Listener* listener) {
 	for (j = 0; j < listener->nsocks; j++) {
 		close(listener->socks[j]);
 	}
-	ses.listeners[listener->index] = NULL;
+	ses->listeners[listener->index] = NULL;
 	m_free(listener);
 
 }

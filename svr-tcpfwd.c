@@ -76,8 +76,8 @@ void recv_msg_global_request_remotetcp() {
 		goto out;
 	}
 
-	reqname = buf_getstring(ses.payload, &namelen);
-	wantreply = buf_getbool(ses.payload);
+	reqname = buf_getstring(ses->payload, &namelen);
+	wantreply = buf_getbool(ses->payload);
 
 	if (namelen > MAX_NAME_LEN) {
 		TRACE(("name len is wrong: %d", namelen))
@@ -127,13 +127,13 @@ static int svr_cancelremotetcp() {
 
 	TRACE(("enter cancelremotetcp"))
 
-	bindaddr = buf_getstring(ses.payload, &addrlen);
+	bindaddr = buf_getstring(ses->payload, &addrlen);
 	if (addrlen > MAX_IP_LEN) {
 		TRACE(("addr len too long: %d", addrlen))
 		goto out;
 	}
 
-	port = buf_getint(ses.payload);
+	port = buf_getint(ses->payload);
 
 	tcpinfo.sendaddr = NULL;
 	tcpinfo.sendport = 0;
@@ -161,13 +161,13 @@ static int svr_remotetcpreq() {
 
 	TRACE(("enter remotetcpreq"))
 
-	request_addr = buf_getstring(ses.payload, &addrlen);
+	request_addr = buf_getstring(ses->payload, &addrlen);
 	if (addrlen > MAX_IP_LEN) {
 		TRACE(("addr len too long: %d", addrlen))
 		goto out;
 	}
 
-	port = buf_getint(ses.payload);
+	port = buf_getint(ses->payload);
 
 	if (port == 0) {
 		dropbear_log(LOG_INFO, "Server chosen tcpfwd ports are unsupported");
@@ -179,7 +179,7 @@ static int svr_remotetcpreq() {
 		goto out;
 	}
 
-	if (!ses.allowprivport && port < IPPORT_RESERVED) {
+	if (!ses->allowprivport && port < IPPORT_RESERVED) {
 		TRACE(("can't assign port < 1024 for non-root"))
 		goto out;
 	}
@@ -247,21 +247,21 @@ static int newtcpdirect(struct Channel * channel) {
 		goto out;
 	}
 
-	desthost = buf_getstring(ses.payload, &len);
+	desthost = buf_getstring(ses->payload, &len);
 	if (len > MAX_HOST_LEN) {
 		TRACE(("leave newtcpdirect: desthost too long"))
 		goto out;
 	}
 
-	destport = buf_getint(ses.payload);
+	destport = buf_getint(ses->payload);
 	
-	orighost = buf_getstring(ses.payload, &len);
+	orighost = buf_getstring(ses->payload, &len);
 	if (len > MAX_HOST_LEN) {
 		TRACE(("leave newtcpdirect: orighost too long"))
 		goto out;
 	}
 
-	origport = buf_getint(ses.payload);
+	origport = buf_getint(ses->payload);
 
 	/* best be sure */
 	if (origport > 65535 || destport > 65535) {
@@ -277,7 +277,7 @@ static int newtcpdirect(struct Channel * channel) {
 		goto out;
 	}
 
-	ses.maxfd = MAX(ses.maxfd, sock);
+	ses->maxfd = MAX(ses->maxfd, sock);
 
 	 /* We don't set readfd, that will get set after the connection's
 	 * progress succeeds */

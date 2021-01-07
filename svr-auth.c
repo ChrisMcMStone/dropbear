@@ -41,11 +41,11 @@ static int checkusername(unsigned char *username, unsigned int userlen);
 /* initialise the first time for a session, resetting all parameters */
 void svr_authinitialise() {
 
-	ses.authstate.failcount = 0;
-	ses.authstate.pw_name = NULL;
-	ses.authstate.pw_dir = NULL;
-	ses.authstate.pw_shell = NULL;
-	ses.authstate.pw_passwd = NULL;
+	ses->authstate.failcount = 0;
+	ses->authstate.pw_name = NULL;
+	ses->authstate.pw_dir = NULL;
+	ses->authstate.pw_shell = NULL;
+	ses->authstate.pw_passwd = NULL;
 	authclear();
 	
 }
@@ -55,26 +55,26 @@ void svr_authinitialise() {
  * on initialisation */
 static void authclear() {
 	
-	memset(&ses.authstate, 0, sizeof(ses.authstate));
+	memset(&ses->authstate, 0, sizeof(ses->authstate));
 #ifdef ENABLE_SVR_PUBKEY_AUTH
-	ses.authstate.authtypes |= AUTH_TYPE_PUBKEY;
+	ses->authstate.authtypes |= AUTH_TYPE_PUBKEY;
 #endif
 #if defined(ENABLE_SVR_PASSWORD_AUTH) || defined(ENABLE_SVR_PAM_AUTH)
 	if (!svr_opts.noauthpass) {
-		ses.authstate.authtypes |= AUTH_TYPE_PASSWORD;
+		ses->authstate.authtypes |= AUTH_TYPE_PASSWORD;
 	}
 #endif
-	if (ses.authstate.pw_name) {
-		m_free(ses.authstate.pw_name);
+	if (ses->authstate.pw_name) {
+		m_free(ses->authstate.pw_name);
 	}
-	if (ses.authstate.pw_shell) {
-		m_free(ses.authstate.pw_shell);
+	if (ses->authstate.pw_shell) {
+		m_free(ses->authstate.pw_shell);
 	}
-	if (ses.authstate.pw_dir) {
-		m_free(ses.authstate.pw_dir);
+	if (ses->authstate.pw_dir) {
+		m_free(ses->authstate.pw_dir);
 	}
-	if (ses.authstate.pw_passwd) {
-		m_free(ses.authstate.pw_passwd);
+	if (ses->authstate.pw_passwd) {
+		m_free(ses->authstate.pw_passwd);
 	}
 	
 }
@@ -87,9 +87,9 @@ void send_msg_userauth_banner(buffer *banner) {
 
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_USERAUTH_BANNER);
-	buf_putbufstring(ses.writepayload, banner);
-	buf_putstring(ses.writepayload, "en", 2);
+	buf_putbyte(ses->writepayload, SSH_MSG_USERAUTH_BANNER);
+	buf_putbufstring(ses->writepayload, banner);
+	buf_putstring(ses->writepayload, "en", 2);
 
 	encrypt_packet();
 
@@ -107,7 +107,7 @@ void recv_msg_userauth_request() {
 	TRACE(("enter recv_msg_userauth_request"))
 
 	/* ignore packets if auth is already done */
-	if (ses.authstate.authdone == 1) {
+	if (ses->authstate.authdone == 1) {
 		TRACE(("leave recv_msg_userauth_request: authdone already"))
 		return;
 	}
@@ -119,9 +119,9 @@ void recv_msg_userauth_request() {
 		svr_opts.banner = NULL;
 	}
 
-	username = buf_getstring(ses.payload, &userlen);
-	servicename = buf_getstring(ses.payload, &servicelen);
-	methodname = buf_getstring(ses.payload, &methodlen);
+	username = buf_getstring(ses->payload, &userlen);
+	servicename = buf_getstring(ses->payload, &servicelen);
+	methodname = buf_getstring(ses->payload, &methodlen);
 
 	/* only handle 'ssh-connection' currently */
 	if (servicelen != SSH_SERVICE_CONNECTION_LEN
@@ -151,12 +151,12 @@ void recv_msg_userauth_request() {
 		if (valid_user
 				&& svr_opts.allowblankpass
 				&& !svr_opts.noauthpass
-				&& !(svr_opts.norootpass && ses.authstate.pw_uid == 0) 
-				&& ses.authstate.pw_passwd[0] == '\0') 
+				&& !(svr_opts.norootpass && ses->authstate.pw_uid == 0) 
+				&& ses->authstate.pw_passwd[0] == '\0') 
 		{
 			dropbear_log(LOG_NOTICE, 
 					"Auth succeeded with blank password for '%s' from %s",
-					ses.authstate.pw_name,
+					ses->authstate.pw_name,
 					svr_ses.addrstring);
 			send_msg_userauth_success();
 			goto out;
@@ -171,7 +171,7 @@ void recv_msg_userauth_request() {
 	
 #ifdef ENABLE_SVR_PASSWORD_AUTH
 	if (!svr_opts.noauthpass &&
-			!(svr_opts.norootpass && ses.authstate.pw_uid == 0) ) {
+			!(svr_opts.norootpass && ses->authstate.pw_uid == 0) ) {
 		/* user wants to try password auth */
 		if (methodlen == AUTH_METHOD_PASSWORD_LEN &&
 				strncmp(methodname, AUTH_METHOD_PASSWORD,
@@ -186,7 +186,7 @@ void recv_msg_userauth_request() {
 
 #ifdef ENABLE_SVR_PAM_AUTH
 	if (!svr_opts.noauthpass &&
-			!(svr_opts.norootpass && ses.authstate.pw_uid == 0) ) {
+			!(svr_opts.norootpass && ses->authstate.pw_uid == 0) ) {
 		/* user wants to try password auth */
 		if (methodlen == AUTH_METHOD_PASSWORD_LEN &&
 				strncmp(methodname, AUTH_METHOD_PASSWORD,
@@ -238,21 +238,21 @@ static int checkusername(unsigned char *username, unsigned int userlen) {
 	}
 
 	/* new user or username has changed */
-	if (ses.authstate.username == NULL ||
-		strcmp(username, ses.authstate.username) != 0) {
+	if (ses->authstate.username == NULL ||
+		strcmp(username, ses->authstate.username) != 0) {
 			/* the username needs resetting */
-			if (ses.authstate.username != NULL) {
+			if (ses->authstate.username != NULL) {
 				dropbear_log(LOG_WARNING, "Client trying multiple usernames from %s",
 							svr_ses.addrstring);
-				m_free(ses.authstate.username);
+				m_free(ses->authstate.username);
 			}
 			authclear();
 			fill_passwd(username);
-			ses.authstate.username = m_strdup(username);
+			ses->authstate.username = m_strdup(username);
 	}
 
 	/* check that user exists */
-	if (!ses.authstate.pw_name) {
+	if (!ses->authstate.pw_name) {
 		TRACE(("leave checkusername: user '%s' doesn't exist", username))
 		dropbear_log(LOG_WARNING,
 				"Login attempt for nonexistent user from %s",
@@ -262,26 +262,26 @@ static int checkusername(unsigned char *username, unsigned int userlen) {
 
 	/* check if we are running as non-root, and login user is different from the server */
 	uid = geteuid();
-	if (uid != 0 && uid != ses.authstate.pw_uid) {
+	if (uid != 0 && uid != ses->authstate.pw_uid) {
 		TRACE(("running as nonroot, only server uid is allowed"))
 		dropbear_log(LOG_WARNING,
 				"Login attempt with wrong user %s from %s",
-				ses.authstate.pw_name,
+				ses->authstate.pw_name,
 				svr_ses.addrstring);
 		return DROPBEAR_FAILURE;
 	}
 
 	/* check for non-root if desired */
-	if (svr_opts.norootlogin && ses.authstate.pw_uid == 0) {
+	if (svr_opts.norootlogin && ses->authstate.pw_uid == 0) {
 		TRACE(("leave checkusername: root login disabled"))
 		dropbear_log(LOG_WARNING, "root login rejected");
 		return DROPBEAR_FAILURE;
 	}
 
-	TRACE(("shell is %s", ses.authstate.pw_shell))
+	TRACE(("shell is %s", ses->authstate.pw_shell))
 
 	/* check that the shell is set */
-	usershell = ses.authstate.pw_shell;
+	usershell = ses->authstate.pw_shell;
 	if (usershell[0] == '\0') {
 		/* empty shell in /etc/passwd means /bin/sh according to passwd(5) */
 		usershell = "/bin/sh";
@@ -302,14 +302,14 @@ static int checkusername(unsigned char *username, unsigned int userlen) {
 	endusershell();
 	TRACE(("no matching shell"))
 	dropbear_log(LOG_WARNING, "User '%s' has invalid shell, rejected",
-				ses.authstate.pw_name);
+				ses->authstate.pw_name);
 	return DROPBEAR_FAILURE;
 	
 goodshell:
 	endusershell();
 	TRACE(("matching shell"))
 
-	TRACE(("uid = %d", ses.authstate.pw_uid))
+	TRACE(("uid = %d", ses->authstate.pw_uid))
 	TRACE(("leave checkusername"))
 	return DROPBEAR_SUCCESS;
 }
@@ -327,30 +327,30 @@ void send_msg_userauth_failure(int partial, int incrfail) {
 
 	CHECKCLEARTOWRITE();
 	
-	buf_putbyte(ses.writepayload, SSH_MSG_USERAUTH_FAILURE);
+	buf_putbyte(ses->writepayload, SSH_MSG_USERAUTH_FAILURE);
 
 	/* put a list of allowed types */
 	typebuf = buf_new(30); /* long enough for PUBKEY and PASSWORD */
 
-	if (ses.authstate.authtypes & AUTH_TYPE_PUBKEY) {
+	if (ses->authstate.authtypes & AUTH_TYPE_PUBKEY) {
 		buf_putbytes(typebuf, AUTH_METHOD_PUBKEY, AUTH_METHOD_PUBKEY_LEN);
-		if (ses.authstate.authtypes & AUTH_TYPE_PASSWORD) {
+		if (ses->authstate.authtypes & AUTH_TYPE_PASSWORD) {
 			buf_putbyte(typebuf, ',');
 		}
 	}
 	
-	if (ses.authstate.authtypes & AUTH_TYPE_PASSWORD) {
+	if (ses->authstate.authtypes & AUTH_TYPE_PASSWORD) {
 		buf_putbytes(typebuf, AUTH_METHOD_PASSWORD, AUTH_METHOD_PASSWORD_LEN);
 	}
 
-	buf_putbufstring(ses.writepayload, typebuf);
+	buf_putbufstring(ses->writepayload, typebuf);
 
-	TRACE(("auth fail: methods %d, '%.*s'", ses.authstate.authtypes,
+	TRACE(("auth fail: methods %d, '%.*s'", ses->authstate.authtypes,
 				typebuf->len, typebuf->data))
 
 	buf_free(typebuf);
 
-	buf_putbyte(ses.writepayload, partial ? 1 : 0);
+	buf_putbyte(ses->writepayload, partial ? 1 : 0);
 	encrypt_packet();
 
 	if (incrfail) {
@@ -359,18 +359,18 @@ void send_msg_userauth_failure(int partial, int incrfail) {
 		/* We delay for 300ms +- 50ms */
 		delay = 250000 + (delay % 100000);
 		//usleep(delay);
-		ses.authstate.failcount++;
+		ses->authstate.failcount++;
 	}
 
-	if (ses.authstate.failcount >= MAX_AUTH_TRIES) {
+	if (ses->authstate.failcount >= MAX_AUTH_TRIES) {
 		char * userstr;
 		/* XXX - send disconnect ? */
 		TRACE(("Max auth tries reached, exiting"))
 
-		if (ses.authstate.pw_name == NULL) {
+		if (ses->authstate.pw_name == NULL) {
 			userstr = "is invalid";
 		} else {
-			userstr = ses.authstate.pw_name;
+			userstr = ses->authstate.pw_name;
 		}
 		dropbear_exit("Max auth tries reached - user '%s' from %s",
 				userstr, svr_ses.addrstring);
@@ -386,16 +386,16 @@ void send_msg_userauth_success() {
 
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_USERAUTH_SUCCESS);
+	buf_putbyte(ses->writepayload, SSH_MSG_USERAUTH_SUCCESS);
 	encrypt_packet();
 
 	/* authdone must be set after encrypt_packet() for 
 	 * delayed-zlib mode */
-	ses.authstate.authdone = 1;
+	ses->authstate.authdone = 1;
 	svr_ses.connect_time = 0;
 
-	if (ses.authstate.pw_uid == 0) {
-		ses.allowprivport = 1;
+	if (ses->authstate.pw_uid == 0) {
+		ses->allowprivport = 1;
 	}
 
 	/* Remove from the list of pre-auth sockets. Should be m_close(), since if

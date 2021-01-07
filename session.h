@@ -298,7 +298,7 @@ struct clientsession {
 };
 
 /* Global structs storing the state */
-extern struct sshsession ses;
+extern struct sshsession* ses;
 
 #ifdef DROPBEAR_SERVER
 extern struct serversession svr_ses;

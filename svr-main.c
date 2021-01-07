@@ -53,6 +53,8 @@ int main(int argc, char ** argv)
 	_dropbear_exit = svr_dropbear_exit;
 	_dropbear_log = svr_dropbear_log;
 
+	ses = calloc(1, sizeof(struct sshsession));
+
 	disallow_core();
 
 	/* get commandline options */

@@ -94,13 +94,13 @@ static void tcp_acceptor(struct Listener *listener, int sock) {
 		if (addr == NULL) {
 			addr = "localhost";
 		}
-		buf_putstring(ses.writepayload, addr, strlen(addr));
-		buf_putint(ses.writepayload, port);
+		buf_putstring(ses->writepayload, addr, strlen(addr));
+		buf_putint(ses->writepayload, port);
 
 		/* originator ip */
-		buf_putstring(ses.writepayload, ipstring, strlen(ipstring));
+		buf_putstring(ses->writepayload, ipstring, strlen(ipstring));
 		/* originator port */
-		buf_putint(ses.writepayload, atol(portstring));
+		buf_putint(ses->writepayload, atol(portstring));
 
 		encrypt_packet();
 
@@ -124,7 +124,7 @@ int listen_tcpfwd(struct TCPListener* tcpinfo) {
 	snprintf(portstring, sizeof(portstring), "%d", tcpinfo->listenport);
 
 	nsocks = dropbear_listen(tcpinfo->listenaddr, portstring, socks, 
-			DROPBEAR_MAX_SOCKS, &errstring, &ses.maxfd);
+			DROPBEAR_MAX_SOCKS, &errstring, &ses->maxfd);
 	if (nsocks < 0) {
 		dropbear_log(LOG_INFO, "TCP forward failed: %s", errstring);
 		m_free(errstring);

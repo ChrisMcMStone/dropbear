@@ -127,7 +127,7 @@ static void exec_proxy_cmd(void *user_data_cmd) {
 	char *usershell;
 
 	usershell = m_strdup(get_user_shell());
-	run_shell_command(cmd, ses.maxfd, usershell);
+	run_shell_command(cmd, ses->maxfd, usershell);
 	dropbear_exit("Failed to run '%s'\n", cmd);
 }
 

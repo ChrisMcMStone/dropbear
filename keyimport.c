@@ -219,7 +219,7 @@ static void base64_encode_fp(FILE * fp, unsigned char *data,
  * bytes used out of the source data.
  */
 
-/* ASN.1 tag classes. */
+/* ASN.1 tag classes-> */
 #define ASN1_CLASS_UNIVERSAL		(0 << 6)
 #define ASN1_CLASS_APPLICATION	  (1 << 6)
 #define ASN1_CLASS_CONTEXT_SPECIFIC (2 << 6)

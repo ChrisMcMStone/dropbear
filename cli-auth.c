@@ -34,7 +34,7 @@
 
 void cli_authinitialise() {
 
-	memset(&ses.authstate, 0, sizeof(ses.authstate));
+	memset(&ses->authstate, 0, sizeof(ses->authstate));
 }
 
 
@@ -42,12 +42,12 @@ void cli_authinitialise() {
 void cli_auth_getmethods() {
 	TRACE(("enter cli_auth_getmethods"))
 	CHECKCLEARTOWRITE();
-	buf_putbyte(ses.writepayload, SSH_MSG_USERAUTH_REQUEST);
-	buf_putstring(ses.writepayload, cli_opts.username, 
+	buf_putbyte(ses->writepayload, SSH_MSG_USERAUTH_REQUEST);
+	buf_putstring(ses->writepayload, cli_opts.username, 
 			strlen(cli_opts.username));
-	buf_putstring(ses.writepayload, SSH_SERVICE_CONNECTION, 
+	buf_putstring(ses->writepayload, SSH_SERVICE_CONNECTION, 
 			SSH_SERVICE_CONNECTION_LEN);
-	buf_putstring(ses.writepayload, "none", 4); /* 'none' method */
+	buf_putstring(ses->writepayload, "none", 4); /* 'none' method */
 
 	encrypt_packet();
 
@@ -58,10 +58,10 @@ void cli_auth_getmethods() {
 	Race described at
 	http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/zlib-openssh.html
 	*/
-	if (ses.keys->trans.algo_comp != DROPBEAR_COMP_ZLIB_DELAY) {
-		ses.authstate.authtypes = AUTH_TYPE_PUBKEY;
+	if (ses->keys->trans.algo_comp != DROPBEAR_COMP_ZLIB_DELAY) {
+		ses->authstate.authtypes = AUTH_TYPE_PUBKEY;
 		if (getenv(DROPBEAR_PASSWORD_ENV)) {
-			ses.authstate.authtypes |= AUTH_TYPE_PASSWORD | AUTH_TYPE_INTERACT;
+			ses->authstate.authtypes |= AUTH_TYPE_PASSWORD | AUTH_TYPE_INTERACT;
 		}
 		if (cli_auth_try() == DROPBEAR_SUCCESS) {
 			TRACE(("skipped initial none auth query"))
@@ -80,13 +80,13 @@ void recv_msg_userauth_banner() {
 	unsigned int i, linecount;
 
 	TRACE(("enter recv_msg_userauth_banner"))
-	if (ses.authstate.authdone) {
+	if (ses->authstate.authdone) {
 		TRACE(("leave recv_msg_userauth_banner: banner after auth done"))
 		return;
 	}
 
-	banner = buf_getstring(ses.payload, &bannerlen);
-	buf_eatstring(ses.payload); /* The language string */
+	banner = buf_getstring(ses->payload, &bannerlen);
+	buf_eatstring(ses->payload); /* The language string */
 
 	if (bannerlen > MAX_BANNER_SIZE) {
 		TRACE(("recv_msg_userauth_banner: bannerlen too long: %d", bannerlen))
@@ -160,7 +160,7 @@ void recv_msg_userauth_failure() {
 	TRACE(("<- MSG_USERAUTH_FAILURE"))
 	TRACE(("enter recv_msg_userauth_failure"))
 
-	if (ses.authstate.authdone) {
+	if (ses->authstate.authdone) {
 		TRACE(("leave recv_msg_userauth_failure, already authdone."))
 		return;
 	}
@@ -201,20 +201,20 @@ void recv_msg_userauth_failure() {
 		cli_ses.lastauthtype = AUTH_TYPE_NONE;
 	}
 
-	methods = buf_getstring(ses.payload, &methlen);
+	methods = buf_getstring(ses->payload, &methlen);
 
-	partial = buf_getbool(ses.payload);
+	partial = buf_getbool(ses->payload);
 
 	if (partial) {
 		dropbear_log(LOG_INFO, "Authentication partially succeeded, more attempts required");
 	} else {
-		ses.authstate.failcount++;
+		ses->authstate.failcount++;
 	}
 
 	TRACE(("Methods (len %d): '%s'", methlen, methods))
 
-	ses.authstate.authdone=0;
-	ses.authstate.authtypes=0;
+	ses->authstate.authdone=0;
+	ses->authstate.authtypes=0;
 
 	/* Split with nulls rather than commas */
 	for (i = 0; i < methlen; i++) {
@@ -230,19 +230,19 @@ void recv_msg_userauth_failure() {
 #ifdef ENABLE_CLI_PUBKEY_AUTH
 			if (strncmp(AUTH_METHOD_PUBKEY, tok,
 				AUTH_METHOD_PUBKEY_LEN) == 0) {
-				ses.authstate.authtypes |= AUTH_TYPE_PUBKEY;
+				ses->authstate.authtypes |= AUTH_TYPE_PUBKEY;
 			}
 #endif
 #ifdef ENABLE_CLI_INTERACT_AUTH
 			if (strncmp(AUTH_METHOD_INTERACT, tok,
 				AUTH_METHOD_INTERACT_LEN) == 0) {
-				ses.authstate.authtypes |= AUTH_TYPE_INTERACT;
+				ses->authstate.authtypes |= AUTH_TYPE_INTERACT;
 			}
 #endif
 #ifdef ENABLE_CLI_PASSWORD_AUTH
 			if (strncmp(AUTH_METHOD_PASSWORD, tok,
 				AUTH_METHOD_PASSWORD_LEN) == 0) {
-				ses.authstate.authtypes |= AUTH_TYPE_PASSWORD;
+				ses->authstate.authtypes |= AUTH_TYPE_PASSWORD;
 			}
 #endif
 			tok = &methods[i+1]; /* Must make sure we don't use it after the
@@ -263,7 +263,7 @@ void recv_msg_userauth_success() {
 	TRACE(("received msg_userauth_success"))
 	/* Note: in delayed-zlib mode, setting authdone here 
 	 * will enable compression in the transport layer */
-	ses.authstate.authdone = 1;
+	ses->authstate.authdone = 1;
 	cli_ses.state = USERAUTH_SUCCESS_RCVD;
 	cli_ses.lastauthtype = AUTH_TYPE_NONE;
 
@@ -282,15 +282,15 @@ int cli_auth_try() {
 	/* Order to try is pubkey, interactive, password.
 	 * As soon as "finished" is set for one, we don't do any more. */
 #ifdef ENABLE_CLI_PUBKEY_AUTH
-	if (ses.authstate.authtypes & AUTH_TYPE_PUBKEY) {
+	if (ses->authstate.authtypes & AUTH_TYPE_PUBKEY) {
 		finished = cli_auth_pubkey();
 		cli_ses.lastauthtype = AUTH_TYPE_PUBKEY;
 	}
 #endif
 
 #ifdef ENABLE_CLI_PASSWORD_AUTH
-	if (!finished && (ses.authstate.authtypes & AUTH_TYPE_PASSWORD)) {
-		if (ses.keys->trans.algo_crypt->cipherdesc == NULL) {
+	if (!finished && (ses->authstate.authtypes & AUTH_TYPE_PASSWORD)) {
+		if (ses->keys->trans.algo_crypt->cipherdesc == NULL) {
 			fprintf(stderr, "Sorry, I won't let you use password auth unencrypted.\n");
 		} else {
 			cli_auth_password();
@@ -301,8 +301,8 @@ int cli_auth_try() {
 #endif
 
 #ifdef ENABLE_CLI_INTERACT_AUTH
-	if (!finished && (ses.authstate.authtypes & AUTH_TYPE_INTERACT)) {
-		if (ses.keys->trans.algo_crypt->cipherdesc == NULL) {
+	if (!finished && (ses->authstate.authtypes & AUTH_TYPE_INTERACT)) {
+		if (ses->keys->trans.algo_crypt->cipherdesc == NULL) {
 			fprintf(stderr, "Sorry, I won't let you use interactive auth unencrypted.\n");
 		} else {
 			if (!cli_ses.auth_interact_failed) {

@@ -227,8 +227,8 @@
  * code, if we're just compiling as client or server */
 #if defined(DROPBEAR_SERVER) && defined(DROPBEAR_CLIENT)
 
-#define IS_DROPBEAR_SERVER (ses.isserver == 1)
-#define IS_DROPBEAR_CLIENT (ses.isserver == 0)
+#define IS_DROPBEAR_SERVER (ses->isserver == 1)
+#define IS_DROPBEAR_CLIENT (ses->isserver == 0)
 
 #elif defined(DROPBEAR_SERVER)
 

@@ -55,7 +55,7 @@ void svr_auth_password() {
 
 	unsigned int changepw;
 
-	passwdcrypt = ses.authstate.pw_passwd;
+	passwdcrypt = ses->authstate.pw_passwd;
 
 #ifdef DEBUG_HACKCRYPT
 	/* debugging crypt for non-root testing with shadows */
@@ -63,14 +63,14 @@ void svr_auth_password() {
 #endif
 
 	/* check if client wants to change password */
-	changepw = buf_getbool(ses.payload);
+	changepw = buf_getbool(ses->payload);
 	if (changepw) {
 		/* not implemented by this server */
 		send_msg_userauth_failure(0, 1);
 		return;
 	}
 
-	password = buf_getstring(ses.payload, &passwordlen);
+	password = buf_getstring(ses->payload, &passwordlen);
 
 	/* the first bytes of passwdcrypt are the salt */
 	testcrypt = crypt((char*)password, passwdcrypt);
@@ -80,7 +80,7 @@ void svr_auth_password() {
 	if (testcrypt == NULL) {
 		/* crypt() with an invalid salt like "!!" */
 		dropbear_log(LOG_WARNING, "User account '%s' is locked",
-				ses.authstate.pw_name);
+				ses->authstate.pw_name);
 		send_msg_userauth_failure(0, 1);
 		return;
 	}
@@ -88,7 +88,7 @@ void svr_auth_password() {
 	/* check for empty password */
 	if (passwdcrypt[0] == '\0') {
 		dropbear_log(LOG_WARNING, "User '%s' has blank password, rejected",
-				ses.authstate.pw_name);
+				ses->authstate.pw_name);
 		send_msg_userauth_failure(0, 1);
 		return;
 	}
@@ -97,13 +97,13 @@ void svr_auth_password() {
 		/* successful authentication */
 		dropbear_log(LOG_NOTICE, 
 				"Password auth succeeded for '%s' from %s",
-				ses.authstate.pw_name,
+				ses->authstate.pw_name,
 				svr_ses.addrstring);
 		send_msg_userauth_success();
 	} else {
 		dropbear_log(LOG_WARNING,
 				"Bad password attempt for '%s' from %s",
-				ses.authstate.pw_name,
+				ses->authstate.pw_name,
 				svr_ses.addrstring);
 		send_msg_userauth_failure(0, 1);
 	}

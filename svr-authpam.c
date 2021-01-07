@@ -195,19 +195,19 @@ void svr_auth_pam() {
 	unsigned char changepw;
 
 	/* check if client wants to change password */
-	changepw = buf_getbool(ses.payload);
+	changepw = buf_getbool(ses->payload);
 	if (changepw) {
 		/* not implemented by this server */
 		send_msg_userauth_failure(0, 1);
 		goto cleanup;
 	}
 
-	password = buf_getstring(ses.payload, &passwordlen);
+	password = buf_getstring(ses->payload, &passwordlen);
 
 	/* used to pass data to the PAM conversation function - don't bother with
 	 * strdup() etc since these are touched only by our own conversation
 	 * function (above) which takes care of it */
-	userData.user = ses.authstate.pw_name;
+	userData.user = ses->authstate.pw_name;
 	userData.passwd = password;
 
 	/* Init pam */
@@ -236,7 +236,7 @@ void svr_auth_pam() {
 				rc, pam_strerror(pamHandlep, rc));
 		dropbear_log(LOG_WARNING,
 				"Bad PAM password attempt for '%s' from %s",
-				ses.authstate.pw_name,
+				ses->authstate.pw_name,
 				svr_ses.addrstring);
 		send_msg_userauth_failure(0, 1);
 		goto cleanup;
@@ -247,7 +247,7 @@ void svr_auth_pam() {
 				rc, pam_strerror(pamHandlep, rc));
 		dropbear_log(LOG_WARNING,
 				"Bad PAM password attempt for '%s' from %s",
-				ses.authstate.pw_name,
+				ses->authstate.pw_name,
 				svr_ses.addrstring);
 		send_msg_userauth_failure(0, 1);
 		goto cleanup;
@@ -255,7 +255,7 @@ void svr_auth_pam() {
 
 	/* successful authentication */
 	dropbear_log(LOG_NOTICE, "PAM password auth succeeded for '%s' from %s",
-			ses.authstate.pw_name,
+			ses->authstate.pw_name,
 			svr_ses.addrstring);
 	send_msg_userauth_success();
 

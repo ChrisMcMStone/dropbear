@@ -90,7 +90,7 @@ static void sesssigchild_handler(int UNUSED(dummy)) {
 	const int saved_errno = errno;
 
 	/* Make channel handling code look for closed channels */
-	ses.channel_signal_pending = 1;
+	ses->channel_signal_pending = 1;
 
 	TRACE(("enter sigchld handler"))
 	while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
@@ -133,7 +133,7 @@ static void sesssigchild_handler(int UNUSED(dummy)) {
 		while (1) {
 			/* isserver is just a random byte to write. We can't do anything
 			about an error so should just ignore it */
-			if (write(ses.signal_pipe[1], &ses.isserver, 1) == 1
+			if (write(ses->signal_pipe[1], &ses->isserver, 1) == 1
 					|| errno != EINTR) {
 				break;
 			}
@@ -172,11 +172,11 @@ static void send_msg_chansess_exitstatus(struct Channel * channel,
 
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_CHANNEL_REQUEST);
-	buf_putint(ses.writepayload, channel->remotechan);
-	buf_putstring(ses.writepayload, "exit-status", 11);
-	buf_putbyte(ses.writepayload, 0); /* boolean FALSE */
-	buf_putint(ses.writepayload, chansess->exit.exitstatus);
+	buf_putbyte(ses->writepayload, SSH_MSG_CHANNEL_REQUEST);
+	buf_putint(ses->writepayload, channel->remotechan);
+	buf_putstring(ses->writepayload, "exit-status", 11);
+	buf_putbyte(ses->writepayload, 0); /* boolean FALSE */
+	buf_putint(ses->writepayload, chansess->exit.exitstatus);
 
 	encrypt_packet();
 
@@ -208,14 +208,14 @@ static void send_msg_chansess_exitsignal(struct Channel * channel,
 		return;
 	}
 
-	buf_putbyte(ses.writepayload, SSH_MSG_CHANNEL_REQUEST);
-	buf_putint(ses.writepayload, channel->remotechan);
-	buf_putstring(ses.writepayload, "exit-signal", 11);
-	buf_putbyte(ses.writepayload, 0); /* boolean FALSE */
-	buf_putstring(ses.writepayload, signame, strlen(signame));
-	buf_putbyte(ses.writepayload, chansess->exit.exitcore);
-	buf_putstring(ses.writepayload, "", 0); /* error msg */
-	buf_putstring(ses.writepayload, "", 0); /* lang */
+	buf_putbyte(ses->writepayload, SSH_MSG_CHANNEL_REQUEST);
+	buf_putint(ses->writepayload, channel->remotechan);
+	buf_putstring(ses->writepayload, "exit-signal", 11);
+	buf_putbyte(ses->writepayload, 0); /* boolean FALSE */
+	buf_putstring(ses->writepayload, signame, strlen(signame));
+	buf_putbyte(ses->writepayload, chansess->exit.exitcore);
+	buf_putstring(ses->writepayload, "", 0); /* error msg */
+	buf_putstring(ses->writepayload, "", 0); /* lang */
 
 	encrypt_packet();
 }
@@ -265,7 +265,7 @@ static int newchansess(struct Channel *channel) {
 static struct logininfo* 
 chansess_login_alloc(struct ChanSess *chansess) {
 	struct logininfo * li;
-	li = login_alloc_entry(chansess->pid, ses.authstate.username,
+	li = login_alloc_entry(chansess->pid, ses->authstate.username,
 			svr_ses.remotehost, chansess->tty);
 	return li;
 }
@@ -341,8 +341,8 @@ static void chansessionrequest(struct Channel *channel) {
 
 	TRACE(("enter chansessionrequest"))
 
-	type = buf_getstring(ses.payload, &typelen);
-	wantreply = buf_getbool(ses.payload);
+	type = buf_getstring(ses->payload, &typelen);
+	wantreply = buf_getbool(ses->payload);
 
 	if (typelen > MAX_NAME_LEN) {
 		TRACE(("leave chansessionrequest: type too long")) /* XXX send error?*/
@@ -404,7 +404,7 @@ static int sessionsignal(struct ChanSess *chansess) {
 		return DROPBEAR_FAILURE;
 	}
 
-	signame = buf_getstring(ses.payload, NULL);
+	signame = buf_getstring(ses->payload, NULL);
 
 	i = 0;
 	while (signames[i].name != 0) {
@@ -440,10 +440,10 @@ static int sessionwinchange(struct ChanSess *chansess) {
 		return DROPBEAR_FAILURE;
 	}
 			
-	termc = buf_getint(ses.payload);
-	termr = buf_getint(ses.payload);
-	termw = buf_getint(ses.payload);
-	termh = buf_getint(ses.payload);
+	termc = buf_getint(ses->payload);
+	termr = buf_getint(ses->payload);
+	termw = buf_getint(ses->payload);
+	termh = buf_getint(ses->payload);
 	
 	pty_change_window_size(chansess->master, termr, termc, termw, termh);
 
@@ -467,10 +467,10 @@ static void get_termmodes(struct ChanSess *chansess) {
 		return;
 	}
 
-	len = buf_getint(ses.payload);
+	len = buf_getint(ses->payload);
 	TRACE(("term mode str %d p->l %d p->p %d", 
-				len, ses.payload->len , ses.payload->pos));
-	if (len != ses.payload->len - ses.payload->pos) {
+				len, ses->payload->len , ses->payload->pos));
+	if (len != ses->payload->len - ses->payload->pos) {
 		dropbear_exit("Bad term mode string");
 	}
 
@@ -479,11 +479,11 @@ static void get_termmodes(struct ChanSess *chansess) {
 		return;
 	}
 
-	while (((opcode = buf_getbyte(ses.payload)) != 0x00) && opcode <= 159) {
+	while (((opcode = buf_getbyte(ses->payload)) != 0x00) && opcode <= 159) {
 
 		/* must be before checking type, so that value is consumed even if
 		 * we don't use it */
-		value = buf_getint(ses.payload);
+		value = buf_getint(ses->payload);
 
 		/* handle types of code */
 		if (opcode > MAX_TERMCODE) {
@@ -557,7 +557,7 @@ static int sessionpty(struct ChanSess * chansess) {
 		return DROPBEAR_FAILURE;
 	}
 
-	chansess->term = buf_getstring(ses.payload, &termlen);
+	chansess->term = buf_getstring(ses->payload, &termlen);
 	if (termlen > MAX_TERM_LEN) {
 		/* TODO send disconnect ? */
 		TRACE(("leave sessionpty: term len too long"))
@@ -578,7 +578,7 @@ static int sessionpty(struct ChanSess * chansess) {
 		dropbear_exit("Out of memory"); /* TODO disconnect */
 	}
 
-	pw = getpwnam(ses.authstate.pw_name);
+	pw = getpwnam(ses->authstate.pw_name);
 	if (!pw)
 		dropbear_exit("getpwnam failed after succeeding previously");
 	pty_setowner(pw, chansess->tty);
@@ -597,7 +597,7 @@ static char* make_connection_string() {
 	char *local_ip, *local_port, *remote_ip, *remote_port;
 	size_t len;
 	char *ret;
-	get_socket_address(ses.sock_in, &local_ip, &local_port, &remote_ip, &remote_port, 0);
+	get_socket_address(ses->sock_in, &local_ip, &local_port, &remote_ip, &remote_port, 0);
 	len = strlen(local_ip) + strlen(local_port) + strlen(remote_ip) + strlen(remote_port) + 4;
 	ret = m_malloc(len);
 	snprintf(ret, len, "%s %s %s %s", remote_ip, remote_port, local_ip, local_port);
@@ -630,7 +630,7 @@ static int sessioncommand(struct Channel *channel, struct ChanSess *chansess,
 	if (iscmd) {
 		/* "exec" */
 		if (chansess->cmd == NULL) {
-			chansess->cmd = buf_getstring(ses.payload, &cmdlen);
+			chansess->cmd = buf_getstring(ses->payload, &cmdlen);
 
 			if (cmdlen > MAX_CMD_LEN) {
 				m_free(chansess->cmd);
@@ -658,10 +658,10 @@ static int sessioncommand(struct Channel *channel, struct ChanSess *chansess,
 #ifdef LOG_COMMANDS
 	if (chansess->cmd) {
 		dropbear_log(LOG_INFO, "User %s executing '%s'", 
-						ses.authstate.pw_name, chansess->cmd);
+						ses->authstate.pw_name, chansess->cmd);
 	} else {
 		dropbear_log(LOG_INFO, "User %s executing login shell", 
-						ses.authstate.pw_name);
+						ses->authstate.pw_name);
 	}
 #endif
 
@@ -708,9 +708,9 @@ static int noptycommand(struct Channel *channel, struct ChanSess *chansess) {
 		return ret;
 	}
 
-	ses.maxfd = MAX(ses.maxfd, channel->writefd);
-	ses.maxfd = MAX(ses.maxfd, channel->readfd);
-	ses.maxfd = MAX(ses.maxfd, channel->errfd);
+	ses->maxfd = MAX(ses->maxfd, channel->writefd);
+	ses->maxfd = MAX(ses->maxfd, channel->readfd);
+	ses->maxfd = MAX(ses->maxfd, channel->errfd);
 
 	addchildpid(chansess, chansess->pid);
 
@@ -798,10 +798,10 @@ static int ptycommand(struct Channel *channel, struct ChanSess *chansess) {
 			/* don't show the motd if ~/.hushlogin exists */
 
 			/* 12 == strlen("/.hushlogin\0") */
-			len = strlen(ses.authstate.pw_dir) + 12; 
+			len = strlen(ses->authstate.pw_dir) + 12; 
 
 			hushpath = m_malloc(len);
-			snprintf(hushpath, len, "%s/.hushlogin", ses.authstate.pw_dir);
+			snprintf(hushpath, len, "%s/.hushlogin", ses->authstate.pw_dir);
 
 			if (stat(hushpath, &sb) < 0) {
 				/* more than a screenful is stupid IMHO */
@@ -836,7 +836,7 @@ static int ptycommand(struct Channel *channel, struct ChanSess *chansess) {
 		channel->writefd = chansess->master;
 		channel->readfd = chansess->master;
 		/* don't need to set stderr here */
-		ses.maxfd = MAX(ses.maxfd, chansess->master);
+		ses->maxfd = MAX(ses->maxfd, chansess->master);
 
 		setnonblocking(chansess->master);
 
@@ -902,12 +902,12 @@ static void execchild(void *user_data) {
 	/* We can only change uid/gid as root ... */
 	if (getuid() == 0) {
 
-		if ((setgid(ses.authstate.pw_gid) < 0) ||
-			(initgroups(ses.authstate.pw_name, 
-						ses.authstate.pw_gid) < 0)) {
+		if ((setgid(ses->authstate.pw_gid) < 0) ||
+			(initgroups(ses->authstate.pw_name, 
+						ses->authstate.pw_gid) < 0)) {
 			dropbear_exit("Error changing user group");
 		}
-		if (setuid(ses.authstate.pw_uid) < 0) {
+		if (setuid(ses->authstate.pw_uid) < 0) {
 			dropbear_exit("Error changing user");
 		}
 	} else {
@@ -918,15 +918,15 @@ static void execchild(void *user_data) {
 		 * usernames with the same uid, but differing groups, then the
 		 * differing groups won't be set (as with initgroups()). The solution
 		 * is for the sysadmin not to give out the UID twice */
-		if (getuid() != ses.authstate.pw_uid) {
+		if (getuid() != ses->authstate.pw_uid) {
 			dropbear_exit("Couldn't	change user as non-root");
 		}
 	}
 
 	/* set env vars */
-	addnewvar("USER", ses.authstate.pw_name);
-	addnewvar("LOGNAME", ses.authstate.pw_name);
-	addnewvar("HOME", ses.authstate.pw_dir);
+	addnewvar("USER", ses->authstate.pw_name);
+	addnewvar("LOGNAME", ses->authstate.pw_name);
+	addnewvar("HOME", ses->authstate.pw_dir);
 	addnewvar("SHELL", get_user_shell());
 	addnewvar("PATH", DEFAULT_PATH);
 	if (chansess->term != NULL) {
@@ -948,7 +948,7 @@ static void execchild(void *user_data) {
 #endif
 
 	/* change directory */
-	if (chdir(ses.authstate.pw_dir) < 0) {
+	if (chdir(ses->authstate.pw_dir) < 0) {
 		dropbear_exit("Error changing directory");
 	}
 
@@ -962,7 +962,7 @@ static void execchild(void *user_data) {
 #endif
 
 	usershell = m_strdup(get_user_shell());
-	run_shell_command(chansess->cmd, ses.maxfd, usershell);
+	run_shell_command(chansess->cmd, ses->maxfd, usershell);
 
 	/* only reached on error */
 	dropbear_exit("Child failed");

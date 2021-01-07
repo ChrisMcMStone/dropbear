@@ -514,7 +514,7 @@ check_user_algos(const char* user_algo_list, algo_type * algos,
 		const char *algo_desc)
 {
 	algo_type new_algos[MAX_PROPOSED_ALGO];
-	/* this has two passes. first we sweep through the given list of
+	/* this has two passes-> first we sweep through the given list of
 	 * algorithms and mark them as usable=2 in the algo_type[] array... */
 	int num_ret = 0;
 	char *work_list = m_strdup(user_algo_list);

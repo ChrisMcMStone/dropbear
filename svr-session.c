@@ -106,24 +106,24 @@ void svr_session(int sock, int childpipe) {
 	svr_chansessinitialise();
 
 	/* for logging the remote address */
-	get_socket_address(ses.sock_in, NULL, NULL, &host, &port, 0);
+	get_socket_address(ses->sock_in, NULL, NULL, &host, &port, 0);
 	len = strlen(host) + strlen(port) + 2;
 	svr_ses.addrstring = m_malloc(len);
 	snprintf(svr_ses.addrstring, len, "%s:%s", host, port);
 	m_free(host);
 	m_free(port);
 
-	get_socket_address(ses.sock_in, NULL, NULL, 
+	get_socket_address(ses->sock_in, NULL, NULL, 
 			&svr_ses.remotehost, NULL, 1);
 
 	/* set up messages etc */
-	ses.remoteclosed = svr_remoteclosed;
-	ses.extra_session_cleanup = svr_session_cleanup;
+	ses->remoteclosed = svr_remoteclosed;
+	ses->extra_session_cleanup = svr_session_cleanup;
 
 	/* packet handlers */
-	ses.packettypes = svr_packettypes;
+	ses->packettypes = svr_packettypes;
 
-	ses.isserver = 1;
+	ses->isserver = 1;
 
 	/* We're ready to go now */
 	sessinitdone = 1;
@@ -151,16 +151,16 @@ void svr_dropbear_exit(int exitcode, const char* format, va_list param) {
 		/* before session init */
 		snprintf(fmtbuf, sizeof(fmtbuf), 
 				"Early exit: %s", format);
-	} else if (ses.authstate.authdone) {
+	} else if (ses->authstate.authdone) {
 		/* user has authenticated */
 		snprintf(fmtbuf, sizeof(fmtbuf),
 				"Exit (%s): %s", 
-				ses.authstate.pw_name, format);
-	} else if (ses.authstate.pw_name) {
+				ses->authstate.pw_name, format);
+	} else if (ses->authstate.pw_name) {
 		/* we have a potential user */
 		snprintf(fmtbuf, sizeof(fmtbuf), 
 				"Exit before auth (user '%s', %d fails): %s",
-				ses.authstate.pw_name, ses.authstate.failcount, format);
+				ses->authstate.pw_name, ses->authstate.failcount, format);
 	} else {
 		/* before userauth */
 		snprintf(fmtbuf, sizeof(fmtbuf), 
@@ -224,10 +224,10 @@ void svr_dropbear_log(int priority, const char* format, va_list param) {
 /* called when the remote side closes the connection */
 static void svr_remoteclosed() {
 
-	m_close(ses.sock_in);
-	m_close(ses.sock_out);
-	ses.sock_in = -1;
-	ses.sock_out = -1;
+	m_close(ses->sock_in);
+	m_close(ses->sock_out);
+	ses->sock_in = -1;
+	ses->sock_out = -1;
 	dropbear_close("Exited normally");
 
 }

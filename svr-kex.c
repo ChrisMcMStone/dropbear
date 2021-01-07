@@ -49,25 +49,25 @@ void recv_msg_kexdh_init() {
 	buffer *ecdh_qs = NULL;
 
 	TRACE(("enter recv_msg_kexdh_init"))
-	if (!ses.kexstate.recvkexinit) {
+	if (!ses->kexstate.recvkexinit) {
 		dropbear_exit("Premature kexdh_init message received");
 	}
 
-	switch (ses.newkeys->algo_kex->mode) {
+	switch (ses->newkeys->algo_kex->mode) {
 		case DROPBEAR_KEX_NORMAL_DH:
 			m_mp_init(&dh_e);
-			if (buf_getmpint(ses.payload, &dh_e) != DROPBEAR_SUCCESS) {
+			if (buf_getmpint(ses->payload, &dh_e) != DROPBEAR_SUCCESS) {
 				dropbear_exit("Bad kex value");
 			}
 			break;
 		case DROPBEAR_KEX_ECDH:
 		case DROPBEAR_KEX_CURVE25519:
 #if defined(DROPBEAR_ECDH) || defined(DROPBEAR_CURVE25519)
-			ecdh_qs = buf_getstringbuf(ses.payload);
+			ecdh_qs = buf_getstringbuf(ses->payload);
 #endif
 			break;
 	}
-	if (ses.payload->pos != ses.payload->len) {
+	if (ses->payload->pos != ses->payload->len) {
 		dropbear_exit("Bad kex value");
 	}
 
@@ -80,7 +80,7 @@ void recv_msg_kexdh_init() {
 	}
 
 	send_msg_newkeys();
-	ses.requirenext = SSH_MSG_NEWKEYS;
+	ses->requirenext = SSH_MSG_NEWKEYS;
 	TRACE(("leave recv_msg_kexdh_init"))
 }
 
@@ -89,7 +89,7 @@ static void svr_ensure_hostkey() {
 
 	const char* fn = NULL;
 	char *fn_temp = NULL;
-	enum signkey_type type = ses.newkeys->algo_hostkey;
+	enum signkey_type type = ses->newkeys->algo_hostkey;
 	void **hostkey = signkey_key_ptr(svr_opts.hostkey, type);
 	int ret = DROPBEAR_FAILURE;
 
@@ -191,18 +191,18 @@ static void send_msg_kexdh_reply(mp_int *dh_e, buffer *ecdh_qs) {
 	}
 #endif
 
-	buf_putbyte(ses.writepayload, SSH_MSG_KEXDH_REPLY);
-	buf_put_pub_key(ses.writepayload, svr_opts.hostkey,
-			ses.newkeys->algo_hostkey);
+	buf_putbyte(ses->writepayload, SSH_MSG_KEXDH_REPLY);
+	buf_put_pub_key(ses->writepayload, svr_opts.hostkey,
+			ses->newkeys->algo_hostkey);
 
-	switch (ses.newkeys->algo_kex->mode) {
+	switch (ses->newkeys->algo_kex->mode) {
 		case DROPBEAR_KEX_NORMAL_DH:
 			{
 			struct kex_dh_param * dh_param = gen_kexdh_param();
 			kexdh_comb_key(dh_param, dh_e, svr_opts.hostkey);
 
 			/* put f */
-			buf_putmpint(ses.writepayload, &dh_param->pub);
+			buf_putmpint(ses->writepayload, &dh_param->pub);
 			free_kexdh_param(dh_param);
 			}
 			break;
@@ -212,7 +212,7 @@ static void send_msg_kexdh_reply(mp_int *dh_e, buffer *ecdh_qs) {
 			struct kex_ecdh_param *ecdh_param = gen_kexecdh_param();
 			kexecdh_comb_key(ecdh_param, ecdh_qs, svr_opts.hostkey);
 
-			buf_put_ecc_raw_pubkey_string(ses.writepayload, &ecdh_param->key);
+			buf_put_ecc_raw_pubkey_string(ses->writepayload, &ecdh_param->key);
 			free_kexecdh_param(ecdh_param);
 			}
 #endif
@@ -222,7 +222,7 @@ static void send_msg_kexdh_reply(mp_int *dh_e, buffer *ecdh_qs) {
 			{
 			struct kex_curve25519_param *param = gen_kexcurve25519_param();
 			kexcurve25519_comb_key(param, ecdh_qs, svr_opts.hostkey);
-			buf_putstring(ses.writepayload, param->pub, CURVE25519_LEN);
+			buf_putstring(ses->writepayload, param->pub, CURVE25519_LEN);
 			free_kexcurve25519_param(param);
 			}
 #endif
@@ -230,8 +230,8 @@ static void send_msg_kexdh_reply(mp_int *dh_e, buffer *ecdh_qs) {
 	}
 
 	/* calc the signature */
-	buf_put_sign(ses.writepayload, svr_opts.hostkey, 
-			ses.newkeys->algo_hostkey, ses.hash);
+	buf_put_sign(ses->writepayload, svr_opts.hostkey, 
+			ses->newkeys->algo_hostkey, ses->hash);
 
 	/* the SSH_MSG_KEXDH_REPLY is done */
 	encrypt_packet();

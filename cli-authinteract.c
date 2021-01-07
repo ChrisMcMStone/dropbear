@@ -84,13 +84,13 @@ void recv_msg_userauth_info_request() {
 	}
 	cli_ses.interact_request_received = 1;
 
-	name = buf_getstring(ses.payload, NULL);
-	instruction = buf_getstring(ses.payload, NULL);
+	name = buf_getstring(ses->payload, NULL);
+	instruction = buf_getstring(ses->payload, NULL);
 
 	/* language tag */
-	buf_eatstring(ses.payload);
+	buf_eatstring(ses->payload);
 
-	num_prompts = buf_getint(ses.payload);
+	num_prompts = buf_getint(ses->payload);
 	
 	if (num_prompts >= DROPBEAR_MAX_CLI_INTERACT_PROMPTS) {
 		dropbear_exit("Too many prompts received for keyboard-interactive");
@@ -98,8 +98,8 @@ void recv_msg_userauth_info_request() {
 
 	/* we'll build the response as we go */
 	CHECKCLEARTOWRITE();
-	buf_putbyte(ses.writepayload, SSH_MSG_USERAUTH_INFO_RESPONSE);
-	buf_putint(ses.writepayload, num_prompts);
+	buf_putbyte(ses->writepayload, SSH_MSG_USERAUTH_INFO_RESPONSE);
+	buf_putint(ses->writepayload, num_prompts);
 
 	if (strlen(name) > 0) {
 		cleantext(name);
@@ -115,10 +115,10 @@ void recv_msg_userauth_info_request() {
 
 	for (i = 0; i < num_prompts; i++) {
 		unsigned int response_len = 0;
-		prompt = buf_getstring(ses.payload, NULL);
+		prompt = buf_getstring(ses->payload, NULL);
 		cleantext(prompt);
 
-		echo = buf_getbool(ses.payload);
+		echo = buf_getbool(ses->payload);
 
 		if (!echo) {
 			unsigned char* p = getpass_or_cancel(prompt);
@@ -129,7 +129,7 @@ void recv_msg_userauth_info_request() {
 		}
 
 		response_len = strlen(response);
-		buf_putstring(ses.writepayload, response, response_len);
+		buf_putstring(ses->writepayload, response, response_len);
 		m_burn(response, response_len);
 		m_free(prompt);
 		m_free(response);
@@ -146,25 +146,25 @@ void cli_auth_interactive() {
 	TRACE(("enter cli_auth_interactive"))
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_USERAUTH_REQUEST);
+	buf_putbyte(ses->writepayload, SSH_MSG_USERAUTH_REQUEST);
 
 	/* username */
-	buf_putstring(ses.writepayload, cli_opts.username,
+	buf_putstring(ses->writepayload, cli_opts.username,
 			strlen(cli_opts.username));
 
 	/* service name */
-	buf_putstring(ses.writepayload, SSH_SERVICE_CONNECTION, 
+	buf_putstring(ses->writepayload, SSH_SERVICE_CONNECTION, 
 			SSH_SERVICE_CONNECTION_LEN);
 
 	/* method */
-	buf_putstring(ses.writepayload, AUTH_METHOD_INTERACT,
+	buf_putstring(ses->writepayload, AUTH_METHOD_INTERACT,
 			AUTH_METHOD_INTERACT_LEN);
 
 	/* empty language tag */
-	buf_putstring(ses.writepayload, "", 0);
+	buf_putstring(ses->writepayload, "", 0);
 
 	/* empty submethods */
-	buf_putstring(ses.writepayload, "", 0);
+	buf_putstring(ses->writepayload, "", 0);
 
 	encrypt_packet();
 	cli_ses.interact_request_received = 0;

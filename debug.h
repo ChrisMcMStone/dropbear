@@ -44,8 +44,8 @@
 /* All functions writing to the cleartext payload buffer call
  * CHECKCLEARTOWRITE() before writing. This is only really useful if you're
  * attempting to track down a problem */
-/*#define CHECKCLEARTOWRITE() assert(ses.writepayload->len == 0 && \
-		ses.writepayload->pos == 0)*/
+/*#define CHECKCLEARTOWRITE() assert(ses->writepayload->len == 0 && \
+		ses->writepayload->pos == 0)*/
 
 #define CHECKCLEARTOWRITE()
 
@@ -69,7 +69,7 @@
 #define TRACE2(X)
 #endif /*DEBUG_TRACE*/
 
-/* To debug with GDB it is easier to run with no forking of child processes.
+/* To debug with GDB it is easier to run with no forking of child processes->
    You will need to pass "-F" as well. */
 /* #define DEBUG_NOFORK */
 

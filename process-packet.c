@@ -48,13 +48,13 @@ void process_packet() {
 
 	TRACE2(("enter process_packet"))
 
-	type = buf_getbyte(ses.payload);
-	TRACE(("process_packet: packet type = %d,  len %d", type, ses.payload->len))
+	type = buf_getbyte(ses->payload);
+	TRACE(("process_packet: packet type = %d,  len %d", type, ses->payload->len))
 
-	ses.lastpacket = type;
+	ses->lastpacket = type;
 
 	now = monotonic_now();
-	ses.last_packet_time_keepalive_recv = now;
+	ses->last_packet_time_keepalive_recv = now;
 
 	/* These packets we can receive at any time */
 	switch(type) {
@@ -79,13 +79,13 @@ void process_packet() {
 	global request with failure won't trigger the idle timeout,
 	but that's probably acceptable */
 	if (!(type == SSH_MSG_GLOBAL_REQUEST || type == SSH_MSG_REQUEST_FAILURE)) {
-		ses.last_packet_time_idle = now;
+		ses->last_packet_time_idle = now;
 	}
 
 	/* This applies for KEX, where the spec says the next packet MUST be
 	 * NEWKEYS */
-	if (ses.requirenext != 0) {
-		if (ses.requirenext == type)
+	if (ses->requirenext != 0) {
+		if (ses->requirenext == type)
 		{
 			/* Got what we expected */
 			TRACE(("got expected packet %d during kexinit", type))
@@ -108,23 +108,23 @@ void process_packet() {
 			{
 				TRACE(("disallowed packet during kexinit"))
 				dropbear_exit("Unexpected packet type %d, expected %d", type,
-						ses.requirenext);
+						ses->requirenext);
 			}
 		}
 	}
 
 	/* Check if we should ignore this packet. Used currently only for
 	 * KEX code, with first_kex_packet_follows */
-	if (ses.ignorenext) {
+	if (ses->ignorenext) {
 		TRACE(("Ignoring packet, type = %d", type))
-		ses.ignorenext = 0;
+		ses->ignorenext = 0;
 		goto out;
 	}
 
 	/* Only clear the flag after we have checked ignorenext */
-	if (ses.requirenext != 0 && ses.requirenext == type)
+	if (ses->requirenext != 0 && ses->requirenext == type)
 	{
-		ses.requirenext = 0;
+		ses->requirenext = 0;
 	}
 
 
@@ -132,18 +132,18 @@ void process_packet() {
 	 * less-than-or-equal-to 60 ( == MAX_UNAUTH_PACKET_TYPE ).
 	 * NOTE: if the protocol changes and new types are added, revisit this 
 	 * assumption */
-	if ( !ses.authstate.authdone && type > MAX_UNAUTH_PACKET_TYPE ) {
+	if ( !ses->authstate.authdone && type > MAX_UNAUTH_PACKET_TYPE ) {
 		dropbear_exit("Received message %d before userauth", type);
 	}
 
 	for (i = 0; ; i++) {
-		if (ses.packettypes[i].type == 0) {
+		if (ses->packettypes[i].type == 0) {
 			/* end of list */
 			break;
 		}
 
-		if (ses.packettypes[i].type == type) {
-			ses.packettypes[i].handler();
+		if (ses->packettypes[i].type == type) {
+			ses->packettypes[i].handler();
 			goto out;
 		}
 	}
@@ -154,8 +154,8 @@ void process_packet() {
 	recv_unimplemented();
 
 out:
-	buf_free(ses.payload);
-	ses.payload = NULL;
+	buf_free(ses->payload);
+	ses->payload = NULL;
 
 	TRACE2(("leave process_packet"))
 }
@@ -164,16 +164,16 @@ out:
 
 /* This must be called directly after receiving the unimplemented packet.
  * Isn't the most clean implementation, it relies on packet processing
- * occurring directly after decryption (direct use of ses.recvseq).
+ * occurring directly after decryption (direct use of ses->recvseq).
  * This is reasonably valid, since there is only a single decryption buffer */
 static void recv_unimplemented() {
 
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_UNIMPLEMENTED);
+	buf_putbyte(ses->writepayload, SSH_MSG_UNIMPLEMENTED);
 	/* the decryption routine increments the sequence number, we must
 	 * decrement */
-	buf_putint(ses.writepayload, ses.recvseq - 1);
+	buf_putint(ses->writepayload, ses->recvseq - 1);
 
 	encrypt_packet();
 }

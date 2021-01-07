@@ -63,14 +63,14 @@ void recv_msg_userauth_pk_ok() {
 
 	TRACE(("enter recv_msg_userauth_pk_ok"))
 
-	algotype = buf_getstring(ses.payload, &algolen);
+	algotype = buf_getstring(ses->payload, &algolen);
 	keytype = signkey_type_from_name(algotype, algolen);
 	TRACE(("recv_msg_userauth_pk_ok: type %d", keytype))
 	m_free(algotype);
 
 	keybuf = buf_new(MAX_PUBKEY_SIZE);
 
-	remotelen = buf_getint(ses.payload);
+	remotelen = buf_getint(ses->payload);
 
 	/* Iterate through our keys, find which one it was that matched, and
 	 * send a real request with that key */
@@ -97,7 +97,7 @@ void recv_msg_userauth_pk_ok() {
 			continue;
 		}
 		if (memcmp(buf_getptr(keybuf, remotelen),
-					buf_getptr(ses.payload, remotelen), remotelen) != 0) {
+					buf_getptr(ses->payload, remotelen), remotelen) != 0) {
 			/* Data didn't match this key */
 			TRACE(("data differed"))
 			continue;
@@ -147,32 +147,32 @@ static void send_msg_userauth_pubkey(sign_key *key, int type, int realsign) {
 	TRACE(("enter send_msg_userauth_pubkey"))
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_USERAUTH_REQUEST);
+	buf_putbyte(ses->writepayload, SSH_MSG_USERAUTH_REQUEST);
 
-	buf_putstring(ses.writepayload, cli_opts.username,
+	buf_putstring(ses->writepayload, cli_opts.username,
 			strlen(cli_opts.username));
 
-	buf_putstring(ses.writepayload, SSH_SERVICE_CONNECTION, 
+	buf_putstring(ses->writepayload, SSH_SERVICE_CONNECTION, 
 			SSH_SERVICE_CONNECTION_LEN);
 
-	buf_putstring(ses.writepayload, AUTH_METHOD_PUBKEY, 
+	buf_putstring(ses->writepayload, AUTH_METHOD_PUBKEY, 
 			AUTH_METHOD_PUBKEY_LEN);
 
-	buf_putbyte(ses.writepayload, realsign);
+	buf_putbyte(ses->writepayload, realsign);
 
 	algoname = signkey_name_from_type(type, &algolen);
 
-	buf_putstring(ses.writepayload, algoname, algolen);
-	buf_put_pub_key(ses.writepayload, key, type);
+	buf_putstring(ses->writepayload, algoname, algolen);
+	buf_put_pub_key(ses->writepayload, key, type);
 
 	if (realsign) {
 		TRACE(("realsign"))
 		/* We put the signature as well - this contains string(session id), then
 		 * the contents of the write payload to this point */
-		sigbuf = buf_new(4 + ses.session_id->len + ses.writepayload->len);
-		buf_putbufstring(sigbuf, ses.session_id);
-		buf_putbytes(sigbuf, ses.writepayload->data, ses.writepayload->len);
-		cli_buf_put_sign(ses.writepayload, key, type, sigbuf);
+		sigbuf = buf_new(4 + ses->session_id->len + ses->writepayload->len);
+		buf_putbufstring(sigbuf, ses->session_id);
+		buf_putbytes(sigbuf, ses->writepayload->data, ses->writepayload->len);
+		cli_buf_put_sign(ses->writepayload, key, type, sigbuf);
 		buf_free(sigbuf); /* Nothing confidential in the buffer */
 	}
 

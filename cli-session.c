@@ -148,17 +148,17 @@ static void cli_session_init() {
 #endif
 
 	/* For printing "remote host closed" for the user */
-	ses.remoteclosed = cli_remoteclosed;
+	ses->remoteclosed = cli_remoteclosed;
 
-	ses.extra_session_cleanup = cli_session_cleanup;
+	ses->extra_session_cleanup = cli_session_cleanup;
 
 	/* packet handlers */
-	ses.packettypes = cli_packettypes;
+	ses->packettypes = cli_packettypes;
 
-	ses.isserver = 0;
+	ses->isserver = 0;
 
 #ifdef USE_KEX_FIRST_FOLLOWS
-	ses.send_kex_first_guess = cli_send_kex_first_guess;
+	ses->send_kex_first_guess = cli_send_kex_first_guess;
 #endif
 
 }
@@ -169,8 +169,8 @@ static void send_msg_service_request(char* servicename) {
 
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_SERVICE_REQUEST);
-	buf_putstring(ses.writepayload, servicename, strlen(servicename));
+	buf_putbyte(ses->writepayload, SSH_MSG_SERVICE_REQUEST);
+	buf_putstring(ses->writepayload, servicename, strlen(servicename));
 
 	encrypt_packet();
 	TRACE(("leave send_msg_service_request"))
@@ -186,15 +186,15 @@ static void cli_sessionloop() {
 
 	TRACE2(("enter cli_sessionloop"))
 
-	if (ses.lastpacket == 0) {
+	if (ses->lastpacket == 0) {
 		TRACE2(("exit cli_sessionloop: no real packets yet"))
 		return;
 	}
 
-	if (ses.lastpacket == SSH_MSG_KEXINIT && cli_ses.kex_state == KEX_NOTHING) {
+	if (ses->lastpacket == SSH_MSG_KEXINIT && cli_ses.kex_state == KEX_NOTHING) {
 		/* We initiate the KEXDH. If DH wasn't the correct type, the KEXINIT
 		 * negotiation would have failed. */
-		if (!ses.kexstate.our_first_follows_matches) {
+		if (!ses->kexstate.our_first_follows_matches) {
 			send_msg_kexdh_init();
 		}
 		cli_ses.kex_state = KEXDH_INIT_SENT;			
@@ -203,7 +203,7 @@ static void cli_sessionloop() {
 	}
 
 	/* A KEX has finished, so we should go back to our KEX_NOTHING state */
-	if (cli_ses.kex_state != KEX_NOTHING && ses.kexstate.sentnewkeys) {
+	if (cli_ses.kex_state != KEX_NOTHING && ses->kexstate.sentnewkeys) {
 		cli_ses.kex_state = KEX_NOTHING;
 	}
 
@@ -213,7 +213,7 @@ static void cli_sessionloop() {
 		return;
 	}
 
-	if (ses.kexstate.donefirstkex == 0) {
+	if (ses->kexstate.donefirstkex == 0) {
 		/* We might reach here if we have partial packet reads or have
 		 * received SSG_MSG_IGNORE etc. Just skip it */
 		TRACE2(("donefirstkex false\n"))
@@ -290,7 +290,7 @@ static void cli_sessionloop() {
 			return;
 
 		case SESSION_RUNNING:
-			if (ses.chancount < 1 && !cli_opts.no_cmd) {
+			if (ses->chancount < 1 && !cli_opts.no_cmd) {
 				cli_finished();
 			}
 
@@ -340,10 +340,10 @@ static void cli_remoteclosed() {
 
 	/* XXX TODO perhaps print a friendlier message if we get this but have
 	 * already sent/received disconnect message(s) ??? */
-	m_close(ses.sock_in);
-	m_close(ses.sock_out);
-	ses.sock_in = -1;
-	ses.sock_out = -1;
+	m_close(ses->sock_in);
+	m_close(ses->sock_out);
+	ses->sock_in = -1;
+	ses->sock_out = -1;
 	dropbear_exit("Remote closed the connection");
 }
 

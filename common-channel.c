@@ -70,12 +70,12 @@ static void close_chan_fd(struct Channel *channel, int fd, int how);
 void chaninitialise(const struct ChanType *chantypes[]) {
 
 	/* may as well create space for a single channel */
-	ses.channels = (struct Channel**)m_malloc(sizeof(struct Channel*));
-	ses.chansize = 1;
-	ses.channels[0] = NULL;
-	ses.chancount = 0;
+	ses->channels = (struct Channel**)m_malloc(sizeof(struct Channel*));
+	ses->chansize = 1;
+	ses->channels[0] = NULL;
+	ses->chancount = 0;
 
-	ses.chantypes = chantypes;
+	ses->chantypes = chantypes;
 
 #ifdef USING_LISTENERS
 	listeners_initialise();
@@ -89,13 +89,13 @@ void chancleanup() {
 	unsigned int i;
 
 	TRACE(("enter chancleanup"))
-	for (i = 0; i < ses.chansize; i++) {
-		if (ses.channels[i] != NULL) {
+	for (i = 0; i < ses->chansize; i++) {
+		if (ses->channels[i] != NULL) {
 			TRACE(("channel %d closing", i))
-			remove_channel(ses.channels[i]);
+			remove_channel(ses->channels[i]);
 		}
 	}
-	m_free(ses.channels);
+	m_free(ses->channels);
 	TRACE(("leave chancleanup"))
 }
 
@@ -122,28 +122,28 @@ static struct Channel* newchannel(unsigned int remotechan,
 	TRACE(("enter newchannel"))
 	
 	/* first see if we can use existing channels */
-	for (i = 0; i < ses.chansize; i++) {
-		if (ses.channels[i] == NULL) {
+	for (i = 0; i < ses->chansize; i++) {
+		if (ses->channels[i] == NULL) {
 			break;
 		}
 	}
 
 	/* otherwise extend the list */
-	if (i == ses.chansize) {
-		if (ses.chansize >= MAX_CHANNELS) {
+	if (i == ses->chansize) {
+		if (ses->chansize >= MAX_CHANNELS) {
 			TRACE(("leave newchannel: max chans reached"))
 			return NULL;
 		}
 
 		/* extend the channels */
-		ses.channels = (struct Channel**)m_realloc(ses.channels,
-				(ses.chansize+CHAN_EXTEND_SIZE)*sizeof(struct Channel*));
+		ses->channels = (struct Channel**)m_realloc(ses->channels,
+				(ses->chansize+CHAN_EXTEND_SIZE)*sizeof(struct Channel*));
 
-		ses.chansize += CHAN_EXTEND_SIZE;
+		ses->chansize += CHAN_EXTEND_SIZE;
 
 		/* set the new channels to null */
-		for (j = i; j < ses.chansize; j++) {
-			ses.channels[j] = NULL;
+		for (j = i; j < ses->chansize; j++) {
+			ses->channels[j] = NULL;
 		}
 
 	}
@@ -176,8 +176,8 @@ static struct Channel* newchannel(unsigned int remotechan,
 
 	newchan->prio = DROPBEAR_CHANNEL_PRIO_EARLY; /* inithandler sets it */
 
-	ses.channels[i] = newchan;
-	ses.chancount++;
+	ses->channels[i] = newchan;
+	ses->chancount++;
 
 	TRACE(("leave newchannel"))
 
@@ -185,22 +185,22 @@ static struct Channel* newchannel(unsigned int remotechan,
 }
 
 /* Returns the channel structure corresponding to the channel in the current
- * data packet (ses.payload must be positioned appropriately).
+ * data packet (ses->payload must be positioned appropriately).
  * A valid channel is always returns, it will fail fatally with an unknown
  * channel */
 static struct Channel* getchannel_msg(const char* kind) {
 
 	unsigned int chan;
 
-	chan = buf_getint(ses.payload);
-	if (chan >= ses.chansize || ses.channels[chan] == NULL) {
+	chan = buf_getint(ses->payload);
+	if (chan >= ses->chansize || ses->channels[chan] == NULL) {
 		if (kind) {
 			dropbear_exit("%s for unknown channel %d", kind, chan);
 		} else {
 			dropbear_exit("Unknown channel %d", chan);
 		}
 	}
-	return ses.channels[chan];
+	return ses->channels[chan];
 }
 
 struct Channel* getchannel() {
@@ -215,11 +215,11 @@ void channelio(fd_set *readfds, fd_set *writefds) {
 	unsigned int i;
 
 	/* foreach channel */
-	for (i = 0; i < ses.chansize; i++) {
+	for (i = 0; i < ses->chansize; i++) {
 		/* Close checking only needs to occur for channels that had IO events */
 		int do_check_close = 0;
 
-		channel = ses.channels[i];
+		channel = ses->channels[i];
 		if (channel == NULL) {
 			/* only process in-use channels */
 			continue;
@@ -259,10 +259,10 @@ void channelio(fd_set *readfds, fd_set *writefds) {
 			do_check_close = 1;
 		}
 
-		if (ses.channel_signal_pending) {
+		if (ses->channel_signal_pending) {
 			/* SIGCHLD can change channel state for server sessions */
 			do_check_close = 1;
-			ses.channel_signal_pending = 0;
+			ses->channel_signal_pending = 0;
 		}
 	
 		/* handle any channel closing etc */
@@ -411,8 +411,8 @@ static void send_msg_channel_close(struct Channel *channel) {
 	
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_CHANNEL_CLOSE);
-	buf_putint(ses.writepayload, channel->remotechan);
+	buf_putbyte(ses->writepayload, SSH_MSG_CHANNEL_CLOSE);
+	buf_putint(ses->writepayload, channel->remotechan);
 
 	encrypt_packet();
 
@@ -430,8 +430,8 @@ static void send_msg_channel_eof(struct Channel *channel) {
 	TRACE(("enter send_msg_channel_eof"))
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_CHANNEL_EOF);
-	buf_putint(ses.writepayload, channel->remotechan);
+	buf_putbyte(ses->writepayload, SSH_MSG_CHANNEL_EOF);
+	buf_putint(ses->writepayload, channel->remotechan);
 
 	encrypt_packet();
 
@@ -489,9 +489,9 @@ void setchannelfds(fd_set *readfds, fd_set *writefds) {
 	unsigned int i;
 	struct Channel * channel;
 	
-	for (i = 0; i < ses.chansize; i++) {
+	for (i = 0; i < ses->chansize; i++) {
 
-		channel = ses.channels[i];
+		channel = ses->channels[i];
 		if (channel == NULL) {
 			continue;
 		}
@@ -502,7 +502,7 @@ void setchannelfds(fd_set *readfds, fd_set *writefds) {
 		FD if there's the possibility of "~."" to kill an 
 		interactive session (the read_mangler) */
 		if (channel->transwindow > 0
-		   && (ses.dataallowed || channel->read_mangler)) {
+		   && (ses->dataallowed || channel->read_mangler)) {
 
 			if (channel->readfd >= 0) {
 				FD_SET(channel->readfd, readfds);
@@ -599,9 +599,9 @@ static void remove_channel(struct Channel * channel) {
 		channel->close_handler_done = 1;
 	}
 
-	ses.channels[channel->index] = NULL;
+	ses->channels[channel->index] = NULL;
 	m_free(channel);
-	ses.chancount--;
+	ses->chancount--;
 
 	update_channel_prio();
 
@@ -662,25 +662,25 @@ static void send_msg_channel_data(struct Channel *channel, int isextended) {
 	/* -(1+4+4) is SSH_MSG_CHANNEL_DATA, channel number, string length, and 
 	 * exttype if is extended */
 	maxlen = MIN(maxlen, 
-			ses.writepayload->size - 1 - 4 - 4 - (isextended ? 4 : 0));
+			ses->writepayload->size - 1 - 4 - 4 - (isextended ? 4 : 0));
 	TRACE(("maxlen %zd", maxlen))
 	if (maxlen == 0) {
 		TRACE(("leave send_msg_channel_data: no window"))
 		return;
 	}
 
-	buf_putbyte(ses.writepayload, 
+	buf_putbyte(ses->writepayload, 
 			isextended ? SSH_MSG_CHANNEL_EXTENDED_DATA : SSH_MSG_CHANNEL_DATA);
-	buf_putint(ses.writepayload, channel->remotechan);
+	buf_putint(ses->writepayload, channel->remotechan);
 	if (isextended) {
-		buf_putint(ses.writepayload, SSH_EXTENDED_DATA_STDERR);
+		buf_putint(ses->writepayload, SSH_EXTENDED_DATA_STDERR);
 	}
 	/* a dummy size first ...*/
-	size_pos = ses.writepayload->pos;
-	buf_putint(ses.writepayload, 0);
+	size_pos = ses->writepayload->pos;
+	buf_putint(ses->writepayload, 0);
 
 	/* read the data */
-	len = read(fd, buf_getwriteptr(ses.writepayload, maxlen), maxlen);
+	len = read(fd, buf_getwriteptr(ses->writepayload, maxlen), maxlen);
 
 	if (len <= 0) {
 		if (len == 0 || errno != EINTR) {
@@ -689,27 +689,27 @@ static void send_msg_channel_data(struct Channel *channel, int isextended) {
 			in which case it can be treated the same as EOF */
 			close_chan_fd(channel, fd, SHUT_RD);
 		}
-		buf_setpos(ses.writepayload, 0);
-		buf_setlen(ses.writepayload, 0);
+		buf_setpos(ses->writepayload, 0);
+		buf_setlen(ses->writepayload, 0);
 		TRACE(("leave send_msg_channel_data: len %d read err %d or EOF for fd %d", 
 					len, errno, fd))
 		return;
 	}
 
 	if (channel->read_mangler) {
-		channel->read_mangler(channel, buf_getwriteptr(ses.writepayload, len), &len);
+		channel->read_mangler(channel, buf_getwriteptr(ses->writepayload, len), &len);
 		if (len == 0) {
-			buf_setpos(ses.writepayload, 0);
-			buf_setlen(ses.writepayload, 0);
+			buf_setpos(ses->writepayload, 0);
+			buf_setlen(ses->writepayload, 0);
 			return;
 		}
 	}
 
 	TRACE(("send_msg_channel_data: len %d fd %d", len, fd))
-	buf_incrwritepos(ses.writepayload, len);
+	buf_incrwritepos(ses->writepayload, len);
 	/* ... real size here */
-	buf_setpos(ses.writepayload, size_pos);
-	buf_putint(ses.writepayload, len);
+	buf_setpos(ses->writepayload, size_pos);
+	buf_putint(ses->writepayload, len);
 
 	channel->transwindow -= len;
 
@@ -758,7 +758,7 @@ void common_recv_msg_channel_data(struct Channel *channel, int fd,
 		return;
 	}
 
-	datalen = buf_getint(ses.payload);
+	datalen = buf_getint(ses->payload);
 	TRACE(("length %d", datalen))
 
 	maxdata = cbuf_getavail(cbuf);
@@ -779,9 +779,9 @@ void common_recv_msg_channel_data(struct Channel *channel, int fd,
 		buflen = MIN(buflen, len);
 
 		memcpy(cbuf_writeptr(cbuf, buflen), 
-				buf_getptr(ses.payload, buflen), buflen);
+				buf_getptr(ses->payload, buflen), buflen);
 		cbuf_incrwrite(cbuf, buflen);
-		buf_incrpos(ses.payload, buflen);
+		buf_incrpos(ses->payload, buflen);
 		len -= buflen;
 	}
 
@@ -802,7 +802,7 @@ void recv_msg_channel_window_adjust() {
 	
 	channel = getchannel();
 	
-	incr = buf_getint(ses.payload);
+	incr = buf_getint(ses->payload);
 	TRACE(("received window increment %d", incr))
 	incr = MIN(incr, TRANS_MAX_WIN_INCR);
 	
@@ -819,9 +819,9 @@ static void send_msg_channel_window_adjust(struct Channel* channel,
 	TRACE(("sending window adjust %d", incr))
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_CHANNEL_WINDOW_ADJUST);
-	buf_putint(ses.writepayload, channel->remotechan);
-	buf_putint(ses.writepayload, incr);
+	buf_putbyte(ses->writepayload, SSH_MSG_CHANNEL_WINDOW_ADJUST);
+	buf_putint(ses->writepayload, channel->remotechan);
+	buf_putint(ses->writepayload, incr);
 
 	encrypt_packet();
 }
@@ -842,12 +842,12 @@ void recv_msg_channel_open() {
 	TRACE(("enter recv_msg_channel_open"))
 
 	/* get the packet contents */
-	type = buf_getstring(ses.payload, &typelen);
+	type = buf_getstring(ses->payload, &typelen);
 
-	remotechan = buf_getint(ses.payload);
-	transwindow = buf_getint(ses.payload);
+	remotechan = buf_getint(ses->payload);
+	transwindow = buf_getint(ses->payload);
 	transwindow = MIN(transwindow, TRANS_MAX_WINDOW);
-	transmaxpacket = buf_getint(ses.payload);
+	transmaxpacket = buf_getint(ses->payload);
 	transmaxpacket = MIN(transmaxpacket, TRANS_MAX_PAYLOAD_LEN);
 
 	/* figure what type of packet it is */
@@ -856,9 +856,9 @@ void recv_msg_channel_open() {
 	}
 
 	/* Get the channel type. Client and server style invokation will set up a
-	 * different list for ses.chantypes at startup. We just iterate through
+	 * different list for ses->chantypes at startup. We just iterate through
 	 * this list and find the matching name */
-	for (cp = &ses.chantypes[0], chantype = (*cp); 
+	for (cp = &ses->chantypes[0], chantype = (*cp); 
 			chantype != NULL;
 			cp++, chantype = (*cp)) {
 		if (strcmp(type, chantype->name) == 0) {
@@ -924,8 +924,8 @@ void send_msg_channel_failure(struct Channel *channel) {
 	TRACE(("enter send_msg_channel_failure"))
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_CHANNEL_FAILURE);
-	buf_putint(ses.writepayload, channel->remotechan);
+	buf_putbyte(ses->writepayload, SSH_MSG_CHANNEL_FAILURE);
+	buf_putint(ses->writepayload, channel->remotechan);
 
 	encrypt_packet();
 	TRACE(("leave send_msg_channel_failure"))
@@ -937,8 +937,8 @@ void send_msg_channel_success(struct Channel *channel) {
 	TRACE(("enter send_msg_channel_success"))
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_CHANNEL_SUCCESS);
-	buf_putint(ses.writepayload, channel->remotechan);
+	buf_putbyte(ses->writepayload, SSH_MSG_CHANNEL_SUCCESS);
+	buf_putint(ses->writepayload, channel->remotechan);
 
 	encrypt_packet();
 	TRACE(("leave send_msg_channel_success"))
@@ -952,11 +952,11 @@ static void send_msg_channel_open_failure(unsigned int remotechan,
 	TRACE(("enter send_msg_channel_open_failure"))
 	CHECKCLEARTOWRITE();
 	
-	buf_putbyte(ses.writepayload, SSH_MSG_CHANNEL_OPEN_FAILURE);
-	buf_putint(ses.writepayload, remotechan);
-	buf_putint(ses.writepayload, reason);
-	buf_putstring(ses.writepayload, text, strlen((char*)text));
-	buf_putstring(ses.writepayload, lang, strlen((char*)lang));
+	buf_putbyte(ses->writepayload, SSH_MSG_CHANNEL_OPEN_FAILURE);
+	buf_putint(ses->writepayload, remotechan);
+	buf_putint(ses->writepayload, reason);
+	buf_putstring(ses->writepayload, text, strlen((char*)text));
+	buf_putstring(ses->writepayload, lang, strlen((char*)lang));
 
 	encrypt_packet();
 	TRACE(("leave send_msg_channel_open_failure"))
@@ -971,11 +971,11 @@ static void send_msg_channel_open_confirmation(struct Channel* channel,
 	TRACE(("enter send_msg_channel_open_confirmation"))
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_CHANNEL_OPEN_CONFIRMATION);
-	buf_putint(ses.writepayload, channel->remotechan);
-	buf_putint(ses.writepayload, channel->index);
-	buf_putint(ses.writepayload, recvwindow);
-	buf_putint(ses.writepayload, recvmaxpacket);
+	buf_putbyte(ses->writepayload, SSH_MSG_CHANNEL_OPEN_CONFIRMATION);
+	buf_putint(ses->writepayload, channel->remotechan);
+	buf_putint(ses->writepayload, channel->index);
+	buf_putint(ses->writepayload, recvwindow);
+	buf_putint(ses->writepayload, recvmaxpacket);
 
 	encrypt_packet();
 	TRACE(("leave send_msg_channel_open_confirmation"))
@@ -1049,18 +1049,18 @@ int send_msg_channel_open_init(int fd, const struct ChanType *type) {
 	setnonblocking(fd);
 
 	chan->writefd = chan->readfd = fd;
-	ses.maxfd = MAX(ses.maxfd, fd);
+	ses->maxfd = MAX(ses->maxfd, fd);
 
 	chan->await_open = 1;
 
 	/* now open the channel connection */
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_CHANNEL_OPEN);
-	buf_putstring(ses.writepayload, type->name, strlen(type->name));
-	buf_putint(ses.writepayload, chan->index);
-	buf_putint(ses.writepayload, opts.recv_window);
-	buf_putint(ses.writepayload, RECV_MAX_CHANNEL_DATA_LEN);
+	buf_putbyte(ses->writepayload, SSH_MSG_CHANNEL_OPEN);
+	buf_putstring(ses->writepayload, type->name, strlen(type->name));
+	buf_putint(ses->writepayload, chan->index);
+	buf_putint(ses->writepayload, opts.recv_window);
+	buf_putint(ses->writepayload, RECV_MAX_CHANNEL_DATA_LEN);
 
 	TRACE(("leave send_msg_channel_open_init()"))
 	return DROPBEAR_SUCCESS;
@@ -1082,9 +1082,9 @@ void recv_msg_channel_open_confirmation() {
 	}
 	channel->await_open = 0;
 
-	channel->remotechan =  buf_getint(ses.payload);
-	channel->transwindow = buf_getint(ses.payload);
-	channel->transmaxpacket = buf_getint(ses.payload);
+	channel->remotechan =  buf_getint(ses->payload);
+	channel->transwindow = buf_getint(ses->payload);
+	channel->transmaxpacket = buf_getint(ses->payload);
 	
 	TRACE(("new chan remote %d local %d", 
 				channel->remotechan, channel->index))
@@ -1125,12 +1125,12 @@ void recv_msg_channel_open_failure() {
 
 void send_msg_request_success() {
 	CHECKCLEARTOWRITE();
-	buf_putbyte(ses.writepayload, SSH_MSG_REQUEST_SUCCESS);
+	buf_putbyte(ses->writepayload, SSH_MSG_REQUEST_SUCCESS);
 	encrypt_packet();
 }
 
 void send_msg_request_failure() {
 	CHECKCLEARTOWRITE();
-	buf_putbyte(ses.writepayload, SSH_MSG_REQUEST_FAILURE);
+	buf_putbyte(ses->writepayload, SSH_MSG_REQUEST_FAILURE);
 	encrypt_packet();
 }

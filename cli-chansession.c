@@ -61,11 +61,11 @@ static void cli_chansessreq(struct Channel *channel) {
 
 	TRACE(("enter cli_chansessreq"))
 
-	type = buf_getstring(ses.payload, NULL);
-	wantreply = buf_getbool(ses.payload);
+	type = buf_getstring(ses->payload, NULL);
+	wantreply = buf_getbool(ses->payload);
 
 	if (strcmp(type, "exit-status") == 0) {
-		cli_ses.retval = buf_getint(ses.payload);
+		cli_ses.retval = buf_getint(ses->payload);
 		TRACE(("got exit-status of '%d'", cli_ses.retval))
 	} else if (strcmp(type, "exit-signal") == 0) {
 		TRACE(("got exit-signal, ignoring it"))
@@ -87,7 +87,7 @@ static void cli_closechansess(struct Channel *UNUSED(channel)) {
 	cli_tty_cleanup(); /* Restore tty modes etc */
 
 	/* This channel hasn't gone yet, so we have > 1 */
-	if (ses.chancount > 1) {
+	if (ses->chancount > 1) {
 		dropbear_log(LOG_INFO, "Waiting for other channels to close...");
 	}
 }
@@ -96,10 +96,10 @@ void cli_start_send_channel_request(struct Channel *channel,
 		unsigned char *type) {
 
 	CHECKCLEARTOWRITE();
-	buf_putbyte(ses.writepayload, SSH_MSG_CHANNEL_REQUEST);
-	buf_putint(ses.writepayload, channel->remotechan);
+	buf_putbyte(ses->writepayload, SSH_MSG_CHANNEL_REQUEST);
+	buf_putint(ses->writepayload, channel->remotechan);
 
-	buf_putstring(ses.writepayload, type, strlen(type));
+	buf_putstring(ses->writepayload, type, strlen(type));
 
 }
 
@@ -175,13 +175,13 @@ static void put_termcodes() {
 
 	if (tcgetattr(STDIN_FILENO, &tio) == -1) {
 		dropbear_log(LOG_WARNING, "Failed reading termmodes");
-		buf_putint(ses.writepayload, 1); /* Just the terminator */
-		buf_putbyte(ses.writepayload, 0); /* TTY_OP_END */
+		buf_putint(ses->writepayload, 1); /* Just the terminator */
+		buf_putbyte(ses->writepayload, 0); /* TTY_OP_END */
 		return;
 	}
 
-	bufpos1 = ses.writepayload->pos;
-	buf_putint(ses.writepayload, 0); /* A placeholder for the final length */
+	bufpos1 = ses->writepayload->pos;
+	buf_putint(ses->writepayload, 0); /* A placeholder for the final length */
 
 	/* As with Dropbear server, we ignore baud rates for now */
 	for (sshcode = 1; sshcode < MAX_TERMCODE; sshcode++) {
@@ -220,18 +220,18 @@ static void put_termcodes() {
 		}
 
 		/* If we reach here, we have something to say */
-		buf_putbyte(ses.writepayload, sshcode);
-		buf_putint(ses.writepayload, value);
+		buf_putbyte(ses->writepayload, sshcode);
+		buf_putint(ses->writepayload, value);
 	}
 
-	buf_putbyte(ses.writepayload, 0); /* THE END, aka TTY_OP_END */
+	buf_putbyte(ses->writepayload, 0); /* THE END, aka TTY_OP_END */
 
 	/* Put the string length at the start of the buffer */
-	bufpos2 = ses.writepayload->pos;
+	bufpos2 = ses->writepayload->pos;
 
-	buf_setpos(ses.writepayload, bufpos1); /* Jump back */
-	buf_putint(ses.writepayload, bufpos2 - bufpos1 - 4); /* len(termcodes) */
-	buf_setpos(ses.writepayload, bufpos2); /* Back where we were */
+	buf_setpos(ses->writepayload, bufpos1); /* Jump back */
+	buf_putint(ses->writepayload, bufpos2 - bufpos1 - 4); /* len(termcodes) */
+	buf_setpos(ses->writepayload, bufpos2); /* Back where we were */
 
 	TRACE(("leave put_termcodes"))
 }
@@ -248,10 +248,10 @@ static void put_winsize() {
 		ws.ws_ypixel = 0;
 	}
 
-	buf_putint(ses.writepayload, ws.ws_col); /* Cols */
-	buf_putint(ses.writepayload, ws.ws_row); /* Rows */
-	buf_putint(ses.writepayload, ws.ws_xpixel); /* Width */
-	buf_putint(ses.writepayload, ws.ws_ypixel); /* Height */
+	buf_putint(ses->writepayload, ws.ws_col); /* Cols */
+	buf_putint(ses->writepayload, ws.ws_row); /* Rows */
+	buf_putint(ses->writepayload, ws.ws_xpixel); /* Width */
+	buf_putint(ses->writepayload, ws.ws_ypixel); /* Height */
 
 }
 
@@ -266,14 +266,14 @@ void cli_chansess_winchange() {
 	unsigned int i;
 	struct Channel *channel = NULL;
 
-	for (i = 0; i < ses.chansize; i++) {
-		channel = ses.channels[i];
+	for (i = 0; i < ses->chansize; i++) {
+		channel = ses->channels[i];
 		if (channel != NULL && channel->type == &clichansess) {
 			CHECKCLEARTOWRITE();
-			buf_putbyte(ses.writepayload, SSH_MSG_CHANNEL_REQUEST);
-			buf_putint(ses.writepayload, channel->remotechan);
-			buf_putstring(ses.writepayload, "window-change", 13);
-			buf_putbyte(ses.writepayload, 0); /* FALSE says the spec */
+			buf_putbyte(ses->writepayload, SSH_MSG_CHANNEL_REQUEST);
+			buf_putint(ses->writepayload, channel->remotechan);
+			buf_putstring(ses->writepayload, "window-change", 13);
+			buf_putbyte(ses->writepayload, 0); /* FALSE says the spec */
 			put_winsize();
 			encrypt_packet();
 		}
@@ -290,14 +290,14 @@ static void send_chansess_pty_req(struct Channel *channel) {
 	cli_start_send_channel_request(channel, "pty-req");
 
 	/* Don't want replies */
-	buf_putbyte(ses.writepayload, 0);
+	buf_putbyte(ses->writepayload, 0);
 
 	/* Get the terminal */
 	term = getenv("TERM");
 	if (term == NULL) {
 		term = "vt100"; /* Seems a safe default */
 	}
-	buf_putstring(ses.writepayload, term, strlen(term));
+	buf_putstring(ses->writepayload, term, strlen(term));
 
 	/* Window size */
 	put_winsize();
@@ -333,9 +333,9 @@ static void send_chansess_shell_req(struct Channel *channel) {
 	cli_start_send_channel_request(channel, reqtype);
 
 	/* XXX TODO */
-	buf_putbyte(ses.writepayload, 0); /* Don't want replies */
+	buf_putbyte(ses->writepayload, 0); /* Don't want replies */
 	if (cli_opts.cmd) {
-		buf_putstring(ses.writepayload, cli_opts.cmd, strlen(cli_opts.cmd));
+		buf_putstring(ses->writepayload, cli_opts.cmd, strlen(cli_opts.cmd));
 	}
 
 	encrypt_packet();
@@ -414,13 +414,13 @@ void cli_send_netcat_request() {
 		dropbear_exit("Couldn't open initial channel");
 	}
 
-	buf_putstring(ses.writepayload, cli_opts.netcat_host, 
+	buf_putstring(ses->writepayload, cli_opts.netcat_host, 
 			strlen(cli_opts.netcat_host));
-	buf_putint(ses.writepayload, cli_opts.netcat_port);
+	buf_putint(ses->writepayload, cli_opts.netcat_port);
 
 	/* originator ip - localhost is accurate enough */
-	buf_putstring(ses.writepayload, source_host, strlen(source_host));
-	buf_putint(ses.writepayload, source_port);
+	buf_putstring(ses->writepayload, source_host, strlen(source_host));
+	buf_putint(ses->writepayload, source_port);
 
 	encrypt_packet();
 	TRACE(("leave cli_send_netcat_request"))

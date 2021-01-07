@@ -41,7 +41,7 @@ void recv_msg_service_request() {
 
 	TRACE(("enter recv_msg_service_request"))
 
-	name = buf_getstring(ses.payload, &len);
+	name = buf_getstring(ses->payload, &len);
 
 	/* ssh-userauth */
 	if (len == SSH_SERVICE_USERAUTH_LEN && 
@@ -56,7 +56,7 @@ void recv_msg_service_request() {
 	/* ssh-connection */
 	if (len == SSH_SERVICE_CONNECTION_LEN &&
 			(strncmp(SSH_SERVICE_CONNECTION, name, len) == 0)) {
-		if (ses.authstate.authdone != 1) {
+		if (ses->authstate.authdone != 1) {
 			dropbear_exit("Request for connection before auth");
 		}
 
@@ -79,8 +79,8 @@ static void send_msg_service_accept(unsigned char *name, int len) {
 
 	CHECKCLEARTOWRITE();
 
-	buf_putbyte(ses.writepayload, SSH_MSG_SERVICE_ACCEPT);
-	buf_putstring(ses.writepayload, name, len);
+	buf_putbyte(ses->writepayload, SSH_MSG_SERVICE_ACCEPT);
+	buf_putstring(ses->writepayload, name, len);
 
 	encrypt_packet();
 

@@ -89,7 +89,7 @@ static int new_agent_chan(struct Channel * channel) {
 
 	setnonblocking(fd);
 
-	ses.maxfd = MAX(ses.maxfd, fd);
+	ses->maxfd = MAX(ses->maxfd, fd);
 
 	channel->readfd = fd;
 	channel->writefd = fd;
@@ -236,7 +236,7 @@ void cli_setup_agent(struct Channel *channel) {
 	
 	cli_start_send_channel_request(channel, "auth-agent-req@openssh.com");
 	/* Don't want replies */
-	buf_putbyte(ses.writepayload, 0);
+	buf_putbyte(ses->writepayload, 0);
 	encrypt_packet();
 }
 

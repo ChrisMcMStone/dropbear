@@ -134,11 +134,11 @@ static void send_msg_global_request_remotetcp(const char *addr, int port) {
 	TRACE(("enter send_msg_global_request_remotetcp"))
 
 	CHECKCLEARTOWRITE();
-	buf_putbyte(ses.writepayload, SSH_MSG_GLOBAL_REQUEST);
-	buf_putstring(ses.writepayload, "tcpip-forward", 13);
-	buf_putbyte(ses.writepayload, 1); /* want_reply */
-	buf_putstring(ses.writepayload, addr, strlen(addr));
-	buf_putint(ses.writepayload, port);
+	buf_putbyte(ses->writepayload, SSH_MSG_GLOBAL_REQUEST);
+	buf_putstring(ses->writepayload, "tcpip-forward", 13);
+	buf_putbyte(ses->writepayload, 1); /* want_reply */
+	buf_putstring(ses->writepayload, addr, strlen(addr));
+	buf_putint(ses->writepayload, port);
 
 	encrypt_packet();
 
@@ -162,7 +162,7 @@ void cli_recv_msg_request_success() {
 			fwd->have_reply = 1;
 			if (fwd->listenport == 0) {
 				/* The server should let us know which port was allocated if we requested port 0 */
-				int allocport = buf_getint(ses.payload);
+				int allocport = buf_getint(ses->payload);
 				if (allocport > 0) {
 					fwd->listenport = allocport;
 					dropbear_log(LOG_INFO, "Allocated port %d for remote forward to %s:%d", 
@@ -218,8 +218,8 @@ static int newtcpforwarded(struct Channel * channel) {
 	int sock;
 	int err = SSH_OPEN_ADMINISTRATIVELY_PROHIBITED;
 
-	origaddr = buf_getstring(ses.payload, NULL);
-	origport = buf_getint(ses.payload);
+	origaddr = buf_getstring(ses->payload, NULL);
+	origport = buf_getint(ses->payload);
 
 	/* Find which port corresponds. First try and match address as well as port,
 	in case they want to forward different ports separately ... */
@@ -261,7 +261,7 @@ static int newtcpforwarded(struct Channel * channel) {
 		goto out;
 	}
 
-	ses.maxfd = MAX(ses.maxfd, sock);
+	ses->maxfd = MAX(ses->maxfd, sock);
 
 	/* We don't set readfd, that will get set after the connection's
 	 * progress succeeds */
